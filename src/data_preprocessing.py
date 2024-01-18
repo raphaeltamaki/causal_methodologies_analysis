@@ -1,7 +1,7 @@
 import polars as pl
 import numpy as np
 
-class DataProcessing():
+class DataPreProcessing():
 
     def __init__(
             self, 
@@ -44,7 +44,6 @@ class DataProcessing():
             .group_by([self.id_col, self.date_col])
             .agg(pl.col(self.metric_col).sum())
         )
-    
     
     def normalize_data(self):
         """
