@@ -63,7 +63,7 @@ class DataPreProcessing():
             self.data
             .join(data_stats, on=[self.id_col], how='inner')
             .with_columns(
-                (pl.col(self.metric_col) - pl.col('avg')) / pl.col('std')
+                ((pl.col(self.metric_col) - pl.col('avg')) / pl.col('std')).alias(self.metric_col)
             )
             .drop(['avg', 'std'])
         )
