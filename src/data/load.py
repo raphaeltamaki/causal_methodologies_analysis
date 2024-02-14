@@ -1,5 +1,4 @@
 import polars as pl
-import numpy as np
 import kaggle
 import os
 from pathlib import Path
