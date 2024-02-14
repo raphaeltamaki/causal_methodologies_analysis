@@ -1,35 +1,25 @@
 import polars as pl
 import numpy as np
 import kaggle
-
+import os
+from pathlib import Path
 
 class DataLoader():
 
     def __init__(
             self,
-            data_path: str,
-            id_col :str,
-            date_col: str,
-            metric_col: str
+            data_path: str=None
             ):
         
-        self.data_path = data_path
-
+        self.data_path = Path(data_path) if data_path is not None else Path(os.path.dirname(os.path.abspath(__file__)))
         self.remote_data_addresses = {
             "iowa_licor_sales": "residentmario/iowa-liquor-sales",
             "wallmart_sales": "yasserh/walmart-dataset",
             "supermarket_sales": "aungpyaeap/supermarket-sales",
             "superstore_sales": "rohitsahoo/sales-forecasting",
             "lifetime_value": "baetulo/lifetime-value"
-
         }
-        import kaggle.cli
-# Authenticate with Kaggle
-kaggle.cli.login()
-# Download a dataset
-kaggle.cli.download_dataset()
-        ## Datasets
-
+        self.raw_data = {}
 
     def get_data(self, force: bool = False) -> None:
         """
@@ -37,4 +27,14 @@ kaggle.cli.download_dataset()
         If data already exists, just load the data from local repository
         If force=True, redownload the data and overwrite what exists
         """
+        kaggle.api.authenticate()
+        for dataset_name, dataset_address in self.remote_data_addresses.items():
+            download_folder = self.data_path / Path(dataset_name)
+            if not os.path.exists(download_folder):
+                os.makedirs(download_folder)
+            
+            # download data if we are forcing or if it doesn't exist (folder is empty)
+            if force or not os.listdir(download_folder):
+                kaggle.api.dataset_download_files(dataset_address, path=download_folder, unzip=True)
+
 
