@@ -3,6 +3,7 @@ import numpy as np
 import kaggle
 import os
 from pathlib import Path
+from typing import Dict
 
 
 class DataLoader:
@@ -74,3 +75,11 @@ class DataLoader:
         file_name = os.listdir(file_path)[0]
         return pl.read_csv(file_path / file_name)
 
+    def load_all_datasets(self) -> Dict[pl.DataFrame]:
+        """
+        Read all datasets and return a dictionary containing the Polars DataFrame of each one of them
+        """
+        output = {}
+        for dataset_name in self.remote_data_addresses:
+            output[dataset_name] = self.load_dataset(dataset_name)
+        return output
