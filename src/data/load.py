@@ -4,24 +4,27 @@ import kaggle
 import os
 from pathlib import Path
 
-class DataLoader():
 
-    def __init__(
-            self,
-            data_path: str=None
-            ):
-        
-        self.data_path = Path(data_path) if data_path is not None else Path(os.path.dirname(os.path.abspath(__file__)))
+class DataLoader:
+
+    def __init__(self, data_path: str = None):
+
+        self.data_path = (
+            Path(data_path)
+            if data_path is not None
+            else Path(os.path.dirname(os.path.abspath(__file__)))
+        )
+        # Constants
         self.remote_data_addresses = {
             "iowa_licor_sales": "residentmario/iowa-liquor-sales",
             "wallmart_sales": "yasserh/walmart-dataset",
             "supermarket_sales": "aungpyaeap/supermarket-sales",
             "superstore_sales": "rohitsahoo/sales-forecasting",
-            "lifetime_value": "baetulo/lifetime-value"
+            "lifetime_value": "baetulo/lifetime-value",
         }
         self.raw_data = {}
 
-    def get_data(self, force: bool = False) -> None:
+    def download_data(self, force: bool = False) -> None:
         """
         Get the data from the remote repositores and store it in self.data_path
         If data already exists, just load the data from local repository
@@ -29,12 +32,33 @@ class DataLoader():
         """
         kaggle.api.authenticate()
         for dataset_name, dataset_address in self.remote_data_addresses.items():
+            print(f"Getting {dataset_name} dataset")
+
             download_folder = self.data_path / Path(dataset_name)
             if not os.path.exists(download_folder):
                 os.makedirs(download_folder)
-            
+
             # download data if we are forcing or if it doesn't exist (folder is empty)
             if force or not os.listdir(download_folder):
-                kaggle.api.dataset_download_files(dataset_address, path=download_folder, unzip=True)
+                print(
+                    f"Downloading {dataset_name} dataset. Storing it in {download_folder}"
+                )
+                kaggle.api.dataset_download_files(
+                    dataset_address, path=download_folder, unzip=True
+                )
 
+    def load_dataset(self, dataset_name: str) -> pl.DataFrame:
+        """
+        Loads the dataset of the given name.
+        If dataset doesn't exists, raise error and points to possible inputs
+        Assumes that one file exists in the path. If more than one exists, loads only the first one
+        """
+        if dataset_name not in self.remote_data_addresses:
+            raise ValueError(
+                f"This is not a valid dataset name. Please use one of the following: {', '.join(self.remote_data_addresses.keys())}"
+            )
 
+        # finds all files that are present in the path and get the first one if more than one exists
+        file_path = self.data_path / Path(dataset_name)
+        file_name = os.listdir(file_path)[0]
+        return pl.read_csv(file_path / file_name)
