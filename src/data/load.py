@@ -6,6 +6,17 @@ from pathlib import Path
 
 
 class DataLoader:
+    """
+    This class is responsible for downloading the data that is required for the analysis
+    It is meant to simply download all the relevant datasets in the local enviroment and read it
+    when asked.
+    There are currently 5 datasets being used:
+        - Iowa Licor Sales
+        - Wallmart Dataset
+        - Supermarket Sales
+        - Superstore Sales Dataset
+        - Lifetime Value
+    """
 
     def __init__(self, data_path: str = None):
 
