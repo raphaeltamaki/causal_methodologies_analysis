@@ -10,7 +10,7 @@ class DataLoader:
     This class is responsible for downloading the data that is required for the analysis
     It is meant to simply download all the relevant datasets in the local enviroment and read it
     when asked.
-    There are currently 5 datasets being used:
+    There are currently 5 datasets being used, all from Kaggle:
         - Iowa Licor Sales
         - Wallmart Dataset
         - Supermarket Sales
@@ -73,3 +73,4 @@ class DataLoader:
         file_path = self.data_path / Path(dataset_name)
         file_name = os.listdir(file_path)[0]
         return pl.read_csv(file_path / file_name)
+
