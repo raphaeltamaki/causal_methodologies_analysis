@@ -57,6 +57,10 @@ class DataLoader:
                 kaggle.api.dataset_download_files(
                     dataset_address, path=download_folder, unzip=True
                 )
+            else:
+                print(
+                    f"Dataset {dataset_name} already present\n"
+                )
 
     def load_dataset(self, dataset_name: str) -> pl.DataFrame:
         """
