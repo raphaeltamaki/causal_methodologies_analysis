@@ -74,7 +74,7 @@ class DataLoader:
         file_name = os.listdir(file_path)[0]
         return pl.read_csv(file_path / file_name)
 
-    def load_all_datasets(self) -> Dict[pl.DataFrame]:
+    def load_all_datasets(self) -> Dict[str, pl.DataFrame]:
         """
         Read all datasets and return a dictionary containing the Polars DataFrame of each one of them
         """
