@@ -1,30 +1,42 @@
 import polars as pl
 import numpy as np
+from datetime import timedelta
 
-class DataPreProcessing():
+class DataPreProcessing:
 
     def __init__(
-            self, 
-            data_path: str,
+            self,
+            data: pl.DataFrame,
             id_col :str,
             date_col: str,
-            metric_col: str
+            metric_col: str,
+            date_format: str='yyyy-MM-dd'
             ) -> None:
         
-        self.data_path = data_path
+        # Required parameters
+        self.data = data
         self.id_col = id_col
         self.date_col = date_col
         self.metric_col = metric_col
 
-        self.data = None
+        # Facultative parameters
+        self.date_format = date_format
+
+        # Constants
         self.date_start = None
         self.date_end = None
-    
-    def _load_data(self) -> None:
+
+    def _cast_date_column(self, data) -> None:
         """
-        Load data from a csv based on the path given
+        Cast the date column to date
         """
-        return pl.read_csv(self.data_path)
+        data = (
+            data
+            .with_columns(
+                pl.col(self.date_col).str.to_datetime(self.date_format)
+                )
+        )
+        return data
 
     def _get_date_time(self, data: pl.DataFrame) -> None:
         """
@@ -39,7 +51,7 @@ class DataPreProcessing():
         """
         return (
             data
-            .group_by([self.id_col, self.date_col])
+            .groupby([self.id_col, self.date_col])
             .agg(pl.col(self.metric_col).sum())
         )
     
@@ -47,7 +59,9 @@ class DataPreProcessing():
         """
         Normalize the data based in the pre-treatment period
         """
-        post_treatment_date_start = self.date_start + np.round(pre_treatment_share * (self.date_end - self.date_start).days)
+        post_treatment_date_start = self.date_start + timedelta(
+            days=np.round(pre_treatment_share * (self.date_end - self.date_start).days)
+            )
         data_stats = (
             data
             .filter(pl.col(self.date_col) < post_treatment_date_start)
@@ -78,7 +92,7 @@ class DataPreProcessing():
                 })
         )
 
-    def get_preprocessed_data(self, pre_treatment_share: float=0.8):
+    def get_preprocessed_data(self):
         """
         Apply all the steps to load and pre-process data
         1) Load data from storage
@@ -86,12 +100,18 @@ class DataPreProcessing():
         3) Get the start and end dates
         4) Normalize data based on pre-treatment period
         5) Rename columns to the default of names for ID, Date, and Metric columns
-        """
-        data = self._load_data()
-        self._get_date_time(data)
 
-        # group and normalize data
-        data =self._group_data(data)
-        data = self._normalize_data(data, pre_treatment_share)
-        data = self._apply_default_names(data)
-        return data
+        Observation:
+        pre_treatment_share=1 as default, because this method is not meant to be used to analyze the effect of a treatment,
+        so there is no problem of information leakage if we normalize again (using a fraction of the dataset) afterwards 
+        when we apply the treatment effect
+        """
+        # Prepare the data 
+        self.data = self._cast_date_column(self.data)
+        self._get_date_time(self.data)
+
+        # # group and normalize data
+        self.data = self._group_data(self.data)
+        self.data = self._normalize_data(self.data, 1.0)
+        self.data = self._apply_default_names(self.data)
+        return self.data
