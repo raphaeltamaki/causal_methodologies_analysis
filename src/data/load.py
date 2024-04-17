@@ -35,7 +35,7 @@ class DataLoader:
         }
         self.raw_data = {}
 
-    def download_data(self, force: bool = False) -> None:
+    def get_data(self, force: bool = False) -> None:
         """
         Get the data from the remote repositores and store it in self.data_path
         If data already exists, just load the data from local repository
