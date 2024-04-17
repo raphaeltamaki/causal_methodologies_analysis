@@ -11,7 +11,7 @@ class BaseFormater():
             treatment_col :str,
             date_col: str,
             target_col: str,
-            feature_cols: List[str]=[],
+            feature_cols: List[str]=None,
             date_format: str='%Y-%m-%d') -> None:
         """
         Inputs
@@ -26,7 +26,7 @@ class BaseFormater():
         self.treatment_col = treatment_col
         self.date_col = date_col
         self.target_col = target_col
-        self.feature_cols = feature_cols
+        self.feature_cols = [] if feature_cols is None else feature_cols
         self.date_format = date_format
 
     def _format_date_col(self, data: pl.DataFrame) -> pl.DataFrame:
