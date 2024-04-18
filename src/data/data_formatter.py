@@ -29,6 +29,10 @@ class BaseFormater():
         self.feature_cols = [] if feature_cols is None else feature_cols
         self.date_format = date_format
 
+        # Resulting parameters
+        self.selected_cols = list(set([self.id_col, self.treatment_col, self.date_col, self.target_col] + self.feature_cols)) # drop duplicates
+
+
     def _format_date_col(self, data: pl.DataFrame) -> pl.DataFrame:
         return (
             data
@@ -38,7 +42,7 @@ class BaseFormater():
         )
     
     def _remove_extra_cols(self, data: pl.DataFrame) -> pl.DataFrame:
-        return data.select([self.id_col, self.date_col, self.target_col] + self.feature_cols)
+        return data.select(self.selected_cols)
 
     def _transform_target_to_numeric(self, data: pl.DataFrame) -> pl.DataFrame:
         """
