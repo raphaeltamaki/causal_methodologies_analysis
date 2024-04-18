@@ -47,7 +47,6 @@ class BaseFormater():
             "$142.23" -> "142.23"
         """
         return data
-
     
     def fit(self, X: pl.DataFrame, y:pl.Series=None) -> None:
         pass
@@ -61,7 +60,7 @@ class BaseFormater():
     def fit_transform(self, X: pl.DataFrame, y: pl.Series=None) -> pl.DataFrame:
         self.fit(X, y)
         return self.transform(X)
-    
+
 
 class SupermarketSalesFormatter(BaseFormater):
     def __init__(self,
