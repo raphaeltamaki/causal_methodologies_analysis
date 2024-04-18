@@ -43,7 +43,16 @@ class SyntheticControlPreProcessing:
             data
             .groupby([self.id_col, self.date_col])
             .agg(pl.col(self.metric_col).sum())
-        )    
+        )
+
+    def _verify_uniqueness(self, data: pl.DataFrame) -> bool:
+        """
+        Check if values in the data are unique per (self.date_col, self.id_col)
+        If they are not, they should be grouped together
+        Return True if values are unique, False otherwise
+        """
+        return data.n_unique(subset=[self.id_col, self.date_col]) == data.shape[0]
+
 
     def _set_mean_and_std(self, data: pl.DataFrame) -> None:
         """
@@ -100,13 +109,26 @@ class SyntheticControlPreProcessing:
         )
 
     def fit(self, X: pl.DataFrame, y: pl.Series=None) -> None:
+        """
+        Use the provided that to extract parameters needed to transform the data 
+        """
+        if not self._verify_uniqueness(X):
+            X = self._group_data(X)
         self._set_mean_and_std(X)
 
     def transform(self, X: pl.DataFrame) -> pl.DataFrame:
+        """
+        Transform the data based on the parameters defined when initializing class and the parameters extracted during [fit]
+        """
+        if not self._verify_uniqueness(X):
+            X = self._group_data(X)
         X = self._normalize_data(X)
         X = self._apply_default_names(X)
         return X
 
     def fit_transform(self, X: pl.DataFrame, y: pl.Series=None) -> pl.DataFrame:
+        """
+        Apply fit on the data and then transform it
+        """
         self.fit(X)
         return self.transform(X)
