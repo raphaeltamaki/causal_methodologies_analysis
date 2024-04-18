@@ -8,22 +8,15 @@ class SyntheticControlPreProcessing:
 
     def __init__(
             self,
-            data: pl.DataFrame,
             id_col :str,
             date_col: str,
-            metric_col: str,
-            date_format: str='yyyy-MM-dd'
-            ) -> None:
+            metric_col: str            ) -> None:
         
         # Required parameters
-        self.data = data
         self.id_col = id_col
         self.date_col = date_col
         self.metric_col = metric_col
-
-        # Facultative parameters
-        self.date_format = date_format
-
+        
         # Constants
         self.date_start = None
         self.date_end = None
@@ -71,9 +64,9 @@ class SyntheticControlPreProcessing:
         # to be used in case there is a new segmet
         self.global_stat = (
             data
-            .agg(
-                pl.col(self.metric_col).mean().alias('global_avg'),
-                pl.col(self.metric_col).std().alias('global_std')
+            .select(
+                global_avg = pl.col(self.metric_col).mean(),
+                global_std = pl.col(self.metric_col).std()
             )
         )
 
