@@ -44,6 +44,6 @@ class ExperimentSetup:
             self.treatment_dates &
             (data[self.treatment_variable].is_in(self.treated_groups))
             )
-        self.treatment_effect = self.treated_units * data.map_rows(treatment_effect_method)
-        data[self.target_col] = data[self.target_col] * (1 + self.treatment_effect)
+        self.treatment_effect = data.select(pl.col("City").map_elements(treatment_effect_method))
+        data = data.with_columns((pl.col(self.target_col) * (1 + pl.Series(name="t", values=self.treatment_effect))).alias(self.target_col))
         return data
