@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List
 import polars as pl
 
@@ -70,10 +71,18 @@ class BaseFormater():
             .with_columns(self._discretize_date(self.date_col))
         )
     
+    def _filter_data(self, data: pl.DataFrame) -> pl.DataFrame:
+        """
+        Filter data to include only the appropriate rows for a quasi-experiment analysis.
+        For example: for a dataset with a long time spam, but with a lot of missing dates, we filter only for the period
+        where all ids are present almost all days
+        """
+        return data
+    
     def _remove_extra_cols(self, data: pl.DataFrame) -> pl.DataFrame:
         return data.select(self.selected_cols)
 
-    def _transform_target_to_numeric(self, data: pl.DataFrame) -> pl.DataFrame:
+    def _transform_target(self, data: pl.DataFrame) -> pl.DataFrame:
         """
         Transform the values of the target to a numerical value, if they need formatting
         Example:
@@ -87,7 +96,8 @@ class BaseFormater():
     def transform(self, X: pl.DataFrame) -> pl.DataFrame:
         X = self._format_date_col(X)
         X = self._remove_extra_cols(X)
-        X = self._transform_target_to_numeric(X)
+        X = self._filter_data(X)
+        X = self._transform_target(X)
         return X
 
     def fit_transform(self, X: pl.DataFrame, y: pl.Series=None) -> pl.DataFrame:
@@ -117,7 +127,7 @@ class IowaLicorSalesFormatter(BaseFormater):
                  date_discretization: str=MONTH_DISCRETIZATION) -> None:
         super().__init__(id_col, treatment_col, date_col, target_col, feature_cols, date_format, date_discretization)
 
-    def _transform_target_to_numeric(self, data: pl.DataFrame) -> pl.DataFrame:
+    def _transform_target(self, data: pl.DataFrame) -> pl.DataFrame:
         return data.with_columns(
             pl.col(self.target_col)
             .map_elements(lambda value: float(value.replace("$", "")), return_dtype=pl.Float64)
@@ -156,3 +166,56 @@ class LifetimeValueFormatter(BaseFormater):
                  feature_cols: List[str] = ["product", "product_type", "credit_card_level"],
                  date_format: str = '%Y-%m-%d %H:%M:%S') -> None:
         super().__init__(id_col, treatment_col, date_col, target_col, feature_cols, date_format)
+
+
+class EarthTemperatureFormatter(BaseFormater):
+    def __init__(self,
+                 id_col: str="Country",
+                 treatment_col: str="Country",
+                 date_col: str="dt",
+                 target_col: str="AverageTemperature",
+                 feature_cols: List[str] = [],
+                 date_format: str = '%Y-%m-%d') -> None:
+        super().__init__(id_col, treatment_col, date_col, target_col, feature_cols, date_format)
+
+    def _filter_data(self, data: pl.DataFrame) -> pl.DataFrame:
+        
+        return (
+            data
+            .filter(pl.col(self.date_col) >= pl.lit(datetime(1990, 1, 1)))
+            )
+    
+class Nifty50StockMarketFormatter(BaseFormater):
+    def __init__(self,
+                 id_col: str="Symbol",
+                 treatment_col: str="Symbol",
+                 date_col: str="Date",
+                 target_col: str="Close",
+                 feature_cols: List[str] = [],
+                 date_format: str = '%Y-%m-%d') -> None:
+        super().__init__(id_col, treatment_col, date_col, target_col, feature_cols, date_format)
+
+class CoronaFormatter(BaseFormater):
+    def __init__(self,
+                 id_col: str="Province/State",
+                 treatment_col: str="Province/State",
+                 date_col: str="ObservationDate",
+                 target_col: str="Confirmed",
+                 feature_cols: List[str] = ["Country/Region"],
+                 date_format: str = '%m/%d/%Y') -> None:
+        super().__init__(id_col, treatment_col, date_col, target_col, feature_cols, date_format)
+    
+    def _filter_data(self, data: pl.DataFrame) -> pl.DataFrame:
+        return (
+            data
+            .filter(pl.col(self.date_col) >= pl.lit(datetime(2020, 10, 1)))
+            )
+    
+    def _transform_target(self, data: pl.DataFrame) -> pl.DataFrame:
+        return (
+            data
+            .sort([self.date_col])
+            .with_columns(
+                pl.coalesce(pl.col(self.target_col).shift().over([self.treatment_col]), pl.lit(0)).alias(self.target_col)
+            )
+        )
