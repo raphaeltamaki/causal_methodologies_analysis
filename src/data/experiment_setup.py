@@ -4,26 +4,29 @@ import kaggle
 import os
 from pathlib import Path
 from typing import Callable, Dict, List
+from src.data.data_formatter import BaseFormater
 
 
 class ExperimentSetup:
     def __init__(
             self,
-            date_col: str,
-            target_col: str,
+            data_formatter: BaseFormater,
             treatment_start_date: datetime,
             treatment_end_date: datetime,
-            treatment_variable: str,
-            treated_groups: List[str]) -> None:
+            treated_groups: List[str],
+            treatment_date_format: str="%Y-%m-%d") -> None:
         
         """
         TODO: document
         """
-        self.date_col = date_col
-        self.target_col = target_col
-        self.treatment_start_date = treatment_start_date
-        self.treatment_end_date = treatment_end_date
-        self.treatment_variable = treatment_variable
+        self.data_formatter = data_formatter
+        self.date_col = data_formatter.date_col
+        self.target_col = data_formatter.target_col
+        self.treatment_variable = data_formatter.treatment_col
+
+        # cast dates to datetime if they are stings
+        self.treatment_start_date = treatment_start_date if isinstance(treatment_start_date, datetime) else datetime.strptime(treatment_start_date, treatment_date_format)
+        self.treatment_end_date = treatment_end_date if isinstance(treatment_end_date, datetime) else datetime.strptime(treatment_end_date, treatment_date_format)
         self.treated_groups = treated_groups
 
         # On hold paramets
@@ -39,11 +42,17 @@ class ExperimentSetup:
         Apply the treatment effect method based on the self.treatment_variable directly on target_col, if
         the row is within the period defined.
         """
-        self.treatment_dates = self._find_treatment_dates(data)
+        # format data
+        formatted_data = self.data_formatter.fit_transform(data)
+
+        # find which rows refer to treatment period, and which rows (i.e. units) got the treatment
+        self.treatment_dates = self._find_treatment_dates(formatted_data)
         self.treated_units = (
             self.treatment_dates &
-            (data[self.treatment_variable].is_in(self.treated_groups))
+            (formatted_data[self.treatment_variable].is_in(self.treated_groups))
             )
-        self.treatment_effect = data.select(pl.col("City").map_elements(treatment_effect_method))
-        data = data.with_columns((pl.col(self.target_col) * (1 + pl.Series(name="t", values=self.treatment_effect))).alias(self.target_col))
-        return data
+        
+        # apply the treatment effect
+        self.treatment_effect = formatted_data.select(pl.col(self.treatment_variable).map_elements(treatment_effect_method))
+        output_data = formatted_data.with_columns((pl.col(self.target_col) * (1 + pl.Series(name="t", values=self.treatment_effect))).alias(self.target_col))
+        return output_data
