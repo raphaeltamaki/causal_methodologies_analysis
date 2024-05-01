@@ -77,7 +77,8 @@ class DataLoader:
 
         # finds all files that are present in the path and get the first one if more than one exists
         file_path = self.data_path / Path(dataset_name)
-        file_name = os.listdir(file_path)[0]
+        file_name = list(file_path.glob('*.csv'))[0].resolve()
+        print(file_name)
         return pl.read_csv(file_path / file_name)
 
     def load_all_datasets(self) -> Dict[str, pl.DataFrame]:
