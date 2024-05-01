@@ -37,7 +37,7 @@ class BaseFormater():
         return (
             data
             .with_columns(
-                pl.col(self.date_col).str.to_datetime(self.date_format, strict=False)
+                pl.col(self.date_col).str.to_datetime(self.date_format, strict=True)
                 )
         )
     
@@ -80,17 +80,17 @@ class SupermarketSalesFormatter(BaseFormater):
 class IowaLicorSalesFormatter(BaseFormater):
     def __init__(self,
                  id_col: str="Invoice/Item Number",
-                 treatment_col: str="Store Number",
+                 treatment_col: str="County",
                  date_col: str="Date",
                  target_col: str="Sale (Dollars)",
-                 feature_cols: List[str] = ["City", "County", "Category", "Bottle Volume (ml)"],
+                 feature_cols: List[str] = ["Category", "Bottle Volume (ml)"],
                  date_format: str = '%m/%d/%Y') -> None:
         super().__init__(id_col, treatment_col, date_col, target_col, feature_cols, date_format)
 
     def _transform_target_to_numeric(self, data: pl.DataFrame) -> pl.DataFrame:
         return data.with_columns(
             pl.col(self.target_col)
-            .map_elements(lambda value: value.replace("$", ""), return_dtype=pl.Float64)
+            .map_elements(lambda value: float(value.replace("$", "")), return_dtype=pl.Float64)
         )
 
 
@@ -112,7 +112,7 @@ class SuperstoreSalesFormatter(BaseFormater):
                  date_col: str="Order Date",
                  target_col: str="Sales",
                  feature_cols: List[str] = ["State", "Category", "Sub-Category"],
-                 date_format: str = '%d-%m-%Y') -> None:
+                 date_format: str = '%d/%m/%Y') -> None:
         super().__init__(id_col, treatment_col, date_col, target_col, feature_cols, date_format)
 
 
@@ -123,5 +123,5 @@ class LifetimeValueFormatter(BaseFormater):
                  date_col: str="join_date",
                  target_col: str="STV",
                  feature_cols: List[str] = ["product", "product_type", "credit_card_level"],
-                 date_format: str = '%Y-%m-%d') -> None:
+                 date_format: str = '%Y-%m-%d %H:%M:%S') -> None:
         super().__init__(id_col, treatment_col, date_col, target_col, feature_cols, date_format)
