@@ -16,6 +16,7 @@ class DataLoader:
         - Supermarket Sales
         - Superstore Sales Dataset
         - Lifetime Value
+        - Novel Corona 2019 Dataset
     """
 
     def __init__(self, data_path: str = None):
@@ -32,6 +33,9 @@ class DataLoader:
             "supermarket_sales": "aungpyaeap/supermarket-sales",
             "superstore_sales": "rohitsahoo/sales-forecasting",
             "lifetime_value": "baetulo/lifetime-value",
+            "corona": "sudalairajkumar/novel-corona-virus-2019-dataset",
+            "climate_change_earth_temperature": "berkeleyearth/climate-change-earth-surface-temperature-data",
+            "nifty50_stock_market": "rohanrao/nifty50-stock-market-data",
         }
         self.raw_data = {}
 
