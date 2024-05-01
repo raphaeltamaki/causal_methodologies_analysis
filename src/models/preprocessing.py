@@ -2,31 +2,30 @@ from datetime import timedelta
 
 import numpy as np
 import polars as pl
-
+from src.data.experiment_setup import ExperimentSetup
+from src.data.data_formatter import BaseFormater
 
 class SyntheticControlPreProcessing:
 
     def __init__(
             self,
-            id_col :str,
-            date_col: str,
-            metric_col: str            ) -> None:
+            data_formatter: BaseFormater,
+            experiment_setup: ExperimentSetup,
+        ) -> None:
         
         # Required parameters
-        self.id_col = id_col
-        self.date_col = date_col
-        self.metric_col = metric_col
+        self.experiment_setup = experiment_setup
+        self.treatment_col = data_formatter.treatment_col
+        self.id_col = data_formatter.id_col
+        self.date_col = data_formatter.date_col
+        self.metric_col = data_formatter.target_col
         
         # Constants
-        self.date_start = None
-        self.date_end = None
+        self.treatment_date_start = None
+        self.treatment_date_end = None
 
-    def _get_date_time(self, data: pl.DataFrame) -> None:
-        """
-        Get start and end date of the dataset
-        """
-        self.date_start = data[self.date_col].min()
-        self.date_end = data[self.date_col].max()
+        self.segments_stats = None
+        self.global_stat = None
 
     def _group_data(self, data: pl.DataFrame) -> None:
         """
@@ -34,17 +33,17 @@ class SyntheticControlPreProcessing:
         """
         return (
             data
-            .groupby([self.id_col, self.date_col])
+            .groupby([self.treatment_col, self.date_col])
             .agg(pl.col(self.metric_col).sum())
         )
 
     def _verify_uniqueness(self, data: pl.DataFrame) -> bool:
         """
-        Check if values in the data are unique per (self.date_col, self.id_col)
+        Check if values in the data are unique per (self.date_col, self.treatment_col)
         If they are not, they should be grouped together
         Return True if values are unique, False otherwise
         """
-        return data.n_unique(subset=[self.id_col, self.date_col]) == data.shape[0]
+        return data.n_unique(subset=[self.treatment_col, self.date_col]) == data.shape[0]
 
 
     def _set_mean_and_std(self, data: pl.DataFrame) -> None:
@@ -55,7 +54,7 @@ class SyntheticControlPreProcessing:
         # Get mean and average of all segments in the data
         self.segments_stats = (
             data
-            .groupby([self.id_col])
+            .groupby([self.treatment_col])
             .agg(
                 pl.col(self.metric_col).mean().alias('avg'),
                 pl.col(self.metric_col).std().alias('std')
@@ -78,7 +77,7 @@ class SyntheticControlPreProcessing:
         """
         return  (
             data
-            .join(self.segments_stats, on=[self.id_col], how='left')
+            .join(self.segments_stats, on=[self.treatment_col], how='left')
             .join(self.global_stat, how='cross')
             # use segment specific std and mean if possible
             # otherwise, use global values
@@ -95,16 +94,23 @@ class SyntheticControlPreProcessing:
         return (
             data
             .rename({
-                self.id_col: 'id',
+                self.treatment_col: 'id',
                 self.date_col: 'date',
                 self.metric_col: 'value'
                 })
         )
+    
+    def _filter_for_pretreatment(self, X: pl.DataFrame) -> pl.DataFrame:
+        """
+        Filter data to be only for the pre-treatment period
+        """
+        return X.filter(~(self.experiment_setup.treatment_dates))
 
     def fit(self, X: pl.DataFrame, y: pl.Series=None) -> None:
         """
         Use the provided that to extract parameters needed to transform the data 
         """
+        X = self._filter_for_pretreatment(X)
         if not self._verify_uniqueness(X):
             X = self._group_data(X)
         self._set_mean_and_std(X)
@@ -117,6 +123,12 @@ class SyntheticControlPreProcessing:
             X = self._group_data(X)
         X = self._normalize_data(X)
         X = self._apply_default_names(X)
+        X = X.pivot(
+            index="date",
+            columns="id",
+            values="value",
+            aggregate_function="sum"
+        )
         return X
 
     def fit_transform(self, X: pl.DataFrame, y: pl.Series=None) -> pl.DataFrame:
@@ -125,3 +137,4 @@ class SyntheticControlPreProcessing:
         """
         self.fit(X)
         return self.transform(X)
+    
