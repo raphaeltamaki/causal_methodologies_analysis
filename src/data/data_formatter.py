@@ -2,9 +2,9 @@ from datetime import datetime
 from typing import List
 import polars as pl
 
-DAY_DISCRETIZATION = "day"
-MONTH_DISCRETIZATION = "month"
-YEAR_DISCRETIZATION = "year"
+DAY_DISCRETIZATION = "d"
+MONTH_DISCRETIZATION = "m"
+YEAR_DISCRETIZATION = "y"
 
 class BaseFormater():
 

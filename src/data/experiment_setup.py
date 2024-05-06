@@ -13,6 +13,7 @@ class ExperimentSetup:
             data_formatter: BaseFormater,
             treatment_start_date: datetime,
             treatment_end_date: datetime,
+            lift_size: float,
             treated_groups: List[str],
             treatment_date_format: str="%Y-%m-%d") -> None:
         
@@ -22,6 +23,7 @@ class ExperimentSetup:
         self.data_formatter = data_formatter
         self.date_col = data_formatter.date_col
         self.target_col = data_formatter.target_col
+        self.lift_size = lift_size
         self.treatment_variable = data_formatter.treatment_col
 
         # cast dates to datetime if they are stings
@@ -36,23 +38,29 @@ class ExperimentSetup:
 
     def _find_treatment_dates(self, data: pl.DataFrame) -> pl.DataFrame:
         return (data[self.date_col] >= self.treatment_start_date) & (data[self.date_col] <= self.treatment_end_date)
+    
+    def _get_treatment_effect(self, data: pl.DataFrame) -> pl.DataFrame:
+        raise NotImplementedError
 
-    def apply_treatment(self, data: pl.DataFrame, treatment_effect_method: Callable) -> pl.DataFrame:
+    def apply_treatment(self, data: pl.DataFrame) -> pl.DataFrame:
         """
         Apply the treatment effect method based on the self.treatment_variable directly on target_col, if
         the row is within the period defined.
         """
-        # format data
-        formatted_data = self.data_formatter.fit_transform(data)
 
         # find which rows refer to treatment period, and which rows (i.e. units) got the treatment
-        self.treatment_dates = self._find_treatment_dates(formatted_data)
+        self.treatment_dates = self._find_treatment_dates(data)
         self.treated_units = (
             self.treatment_dates &
-            (formatted_data[self.treatment_variable].is_in(self.treated_groups))
+            (data[self.treatment_variable].is_in(self.treated_groups))
             )
         
         # apply the treatment effect
-        self.treatment_effect = formatted_data.select(pl.col(self.treatment_variable).map_elements(treatment_effect_method))
-        output_data = formatted_data.with_columns((pl.col(self.target_col) * (1 + pl.Series(name="t", values=self.treatment_effect))).alias(self.target_col))
+        self.treatment_effect = self._get_treatment_effect(data) * self.treated_units
+        output_data = data.with_columns((pl.col(self.target_col) * (1 + pl.Series(name="t", values=self.treatment_effect))).alias(self.target_col))
         return output_data
+    
+
+class ConstantLiftExperiment(ExperimentSetup):
+    def _get_treatment_effect(self, data: pl.DataFrame) -> pl.DataFrame:
+        return data.select(pl.col(self.treatment_variable).map_elements(lambda x: self.lift_size if x in self.treated_groups else 0.0))
