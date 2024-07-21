@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import polars as pl
 import random
+from typing import List
 from src.data.data_formatter import (
     SupermarketSalesFormatter,
     IowaLicorSalesFormatter,
@@ -22,11 +23,15 @@ class RandomConstantLiftExperiment():
             dataset_name: str,
             raw_dataset: pl.DataFrame,
             eligible_treatment_percentage: float=None,
+            eligible_treatment_period: List[float]= None,
+            lift_limit: float=1.0,
             seed: int=None) -> None:
         
         self.dataset_name = dataset_name
         self.raw_dataset = raw_dataset
         self.eligible_treatment_percentage = 0.5 if eligible_treatment_percentage is None else eligible_treatment_percentage
+        self.eligible_treatment_period = [0, 1] if eligible_treatment_period is None else eligible_treatment_period
+        self.lift_limit = lift_limit
         # define the seed for the pseudo-random
         random.seed(seed)
         
@@ -67,11 +72,12 @@ class RandomConstantLiftExperiment():
         return random.sample(self.treatment_options, groups_n)
 
     def _get_treatment_time(self):
-        return self.time_range[random.randint(1, len(self.time_range) - 1)]
-
-    @staticmethod
-    def _get_lift() -> float:
-        return random.random()
+        start = max(1, int(self.eligible_treatment_period[0] * len(self.time_range)))
+        end = min(len(self.time_range) - 1, int(self.eligible_treatment_period[1] * len(self.time_range)))
+        return self.time_range[random.randint(start, end)]
+    
+    def _get_lift(self) -> float:
+        return random.random() * self.lift_limit
 
     def get_experiment(self) -> ConstantLiftExperiment:
 

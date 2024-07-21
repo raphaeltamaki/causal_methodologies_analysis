@@ -63,4 +63,4 @@ class ExperimentSetup:
 
 class ConstantLiftExperiment(ExperimentSetup):
     def _get_treatment_effect(self, data: pl.DataFrame) -> pl.DataFrame:
-        return data.select(pl.col(self.treatment_variable).map_elements(lambda x: self.lift_size if x in self.treated_groups else 0.0))
+        return data.select(pl.when(pl.col(self.treatment_variable).is_in(self.treated_groups)).then(self.lift_size).otherwise(0.0))

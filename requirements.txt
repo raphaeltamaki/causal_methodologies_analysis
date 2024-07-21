@@ -11,3 +11,4 @@ arviz>=0.15.1
 causalpy==0.2.2
 mapie==0.8.3
 pyarrow==16.0.0
+pystan==3.8.0

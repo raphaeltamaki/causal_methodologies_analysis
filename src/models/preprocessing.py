@@ -1,5 +1,5 @@
 from datetime import timedelta
-
+from typing import List, AnyStr
 import numpy as np
 import polars as pl
 from src.data.experiment_setup import ExperimentSetup
@@ -11,6 +11,7 @@ class SyntheticControlPreProcessing:
             self,
             data_formatter: BaseFormater,
             experiment_setup: ExperimentSetup,
+            std_min_bound: float=0.001
         ) -> None:
         
         # Required parameters
@@ -19,6 +20,7 @@ class SyntheticControlPreProcessing:
         self.id_col = data_formatter.id_col
         self.date_col = data_formatter.date_col
         self.metric_col = data_formatter.target_col
+        self.std_min_bound = std_min_bound
         
         # Constants
         self.treatment_date_start = None
@@ -26,14 +28,29 @@ class SyntheticControlPreProcessing:
 
         self.segments_stats = None
         self.global_stat = None
-
+        self.treated_units_name = "target"
+    
+    def _rename_treatment_units(self, data: pl.DataFrame) -> pl.DataFrame:
+        """
+        Rename treated units to be all called "treated", so that they are summarized together
+        """
+        return (
+            data
+            .with_columns(
+                pl.when(
+                    pl.col(self.treatment_col).is_in(self.experiment_setup.treated_groups)
+                    ).then(pl.lit(self.treated_units_name)
+                           ).otherwise(pl.col(self.treatment_col))
+                           .alias(self.treatment_col)
+                )
+            )
     def _group_data(self, data: pl.DataFrame) -> None:
         """
         Group data based on the ID and date columns to remove duplicates (or to just regroup on a new granularity)
         """
         return (
             data
-            .groupby([self.treatment_col, self.date_col])
+            .group_by([self.treatment_col, self.date_col])
             .agg(pl.col(self.metric_col).sum())
         )
 
@@ -54,11 +71,12 @@ class SyntheticControlPreProcessing:
         # Get mean and average of all segments in the data
         self.segments_stats = (
             data
-            .groupby([self.treatment_col])
+            .group_by([self.treatment_col])
             .agg(
                 pl.col(self.metric_col).mean().alias('avg'),
                 pl.col(self.metric_col).std().alias('std')
             )
+            .with_columns(pl.max_horizontal(pl.col("std"), pl.lit(self.std_min_bound)))
         )
         # to be used in case there is a new segmet
         self.global_stat = (
@@ -105,12 +123,17 @@ class SyntheticControlPreProcessing:
         Filter data to be only for the pre-treatment period
         """
         return X.filter(~(self.experiment_setup.treatment_dates))
+    
+    def _fill_missing_values(self, X: pl.DataFrame) -> pl.DataFrame:
+        return X.fill_null(0).fill_nan(0)
 
     def fit(self, X: pl.DataFrame, y: pl.Series=None) -> None:
         """
         Use the provided that to extract parameters needed to transform the data 
         """
         X = self._filter_for_pretreatment(X)
+        X = self._fill_missing_values(X)
+        X = self._rename_treatment_units(X)
         if not self._verify_uniqueness(X):
             X = self._group_data(X)
         self._set_mean_and_std(X)
@@ -119,9 +142,11 @@ class SyntheticControlPreProcessing:
         """
         Transform the data based on the parameters defined when initializing class and the parameters extracted during [fit]
         """
+        X = self._rename_treatment_units(X)
+        X = self._fill_missing_values(X)
         if not self._verify_uniqueness(X):
             X = self._group_data(X)
-        X = self._normalize_data(X)
+        # X = self._normalize_data(X)
         X = self._apply_default_names(X)
         X = X.pivot(
             index="date",

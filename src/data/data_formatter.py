@@ -16,7 +16,8 @@ class BaseFormater():
             target_col: str,
             feature_cols: List[str]=None,
             date_format: str='%Y-%m-%d',
-            date_discretization: str=DAY_DISCRETIZATION
+            date_discretization: str=DAY_DISCRETIZATION,
+            missing_number_fill: float=0.0,
             ) -> None:
         """
         Inputs
@@ -34,6 +35,7 @@ class BaseFormater():
         self.feature_cols = [] if feature_cols is None else feature_cols
         self.date_format = date_format
         self.date_discretization = date_discretization
+        self.missing_number_fill = missing_number_fill
 
         # Resulting parameters
         self.selected_cols = list(set([self.id_col, self.treatment_col, self.date_col, self.target_col] + self.feature_cols)) # drop duplicates
@@ -81,6 +83,9 @@ class BaseFormater():
     
     def _remove_extra_cols(self, data: pl.DataFrame) -> pl.DataFrame:
         return data.select(self.selected_cols)
+    
+    def _fill_missing_values(self, data: pl.DataFrame) -> pl.DataFrame:
+        return data.fill_nan(self.missing_number_fill).fill_null(self.missing_number_fill)
 
     def _transform_target(self, data: pl.DataFrame) -> pl.DataFrame:
         """
@@ -96,8 +101,9 @@ class BaseFormater():
     def transform(self, X: pl.DataFrame) -> pl.DataFrame:
         X = self._format_date_col(X)
         X = self._remove_extra_cols(X)
-        X = self._filter_data(X)
         X = self._transform_target(X)
+        X = self._filter_data(X)
+        X = self._fill_missing_values(X)
         return X
 
     def fit_transform(self, X: pl.DataFrame, y: pl.Series=None) -> pl.DataFrame:
@@ -198,17 +204,17 @@ class Nifty50StockMarketFormatter(BaseFormater):
 class CoronaFormatter(BaseFormater):
     def __init__(self,
                  id_col: str="Province/State",
-                 treatment_col: str="Province/State",
+                 treatment_col: str="Country/Region",
                  date_col: str="ObservationDate",
                  target_col: str="Confirmed",
-                 feature_cols: List[str] = ["Country/Region"],
+                 feature_cols: List[str] = [],
                  date_format: str = '%m/%d/%Y') -> None:
         super().__init__(id_col, treatment_col, date_col, target_col, feature_cols, date_format)
     
     def _filter_data(self, data: pl.DataFrame) -> pl.DataFrame:
         return (
             data
-            .filter(pl.col(self.date_col) >= pl.lit(datetime(2020, 10, 1)))
+            .filter(pl.col(self.date_col) > pl.lit(datetime(2020, 10, 1)))
             )
     
     def _transform_target(self, data: pl.DataFrame) -> pl.DataFrame:
@@ -216,6 +222,6 @@ class CoronaFormatter(BaseFormater):
             data
             .sort([self.date_col])
             .with_columns(
-                pl.coalesce(pl.col(self.target_col).shift().over([self.treatment_col]), pl.lit(0)).alias(self.target_col)
+                (pl.col(self.target_col) - pl.coalesce(pl.col(self.target_col).shift().over([self.treatment_col]), pl.lit(0))).alias(self.target_col)
             )
         )
