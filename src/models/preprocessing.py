@@ -138,6 +138,12 @@ class SyntheticControlPreProcessing:
             X = self._group_data(X)
         self._set_mean_and_std(X)
 
+    def post_processings(self, X: pl.DataFrame) -> pl.DataFrame:
+      """
+      Applies some last processing steps, depending on the required format, columns names the algorithms required
+      """
+      return X.rename(lambda column_name: column_name.replace(' ', ''))
+
     def transform(self, X: pl.DataFrame) -> pl.DataFrame:
         """
         Transform the data based on the parameters defined when initializing class and the parameters extracted during [fit]
@@ -154,6 +160,7 @@ class SyntheticControlPreProcessing:
             values="value",
             aggregate_function="sum"
         )
+        X = self.post_processings(X)
         return X
 
     def fit_transform(self, X: pl.DataFrame, y: pl.Series=None) -> pl.DataFrame:
@@ -162,4 +169,42 @@ class SyntheticControlPreProcessing:
         """
         self.fit(X)
         return self.transform(X)
-    
+
+
+class DifferenceInDifferencesPreProcessing(SyntheticControlPreProcessing):
+    """
+    Preprocessing for Difference-In-Differences Algorithm from CausalPy
+    Limiting to only using the same features as Synthetic Control
+    """
+
+    def post_processings(self, X: pl.DataFrame) -> pl.DataFrame:
+      """
+      Applies some last processing steps, depending on the required format, columns names the algorithms required
+      """
+      return (
+          X
+          .rename(lambda column_name: column_name.replace(' ', ''))
+          .rename({'id': 'unit'})
+          .with_columns(
+              pl.when(pl.col('date') >= self.experiment_setup.treatment_start_date).then(pl.lit(1)).otherwise(pl.lit(0))
+              .alias('post_treatment'),
+              pl.when(pl.col('unit') == 'target').then(pl.lit(1)).otherwise(pl.lit(0))
+              .alias('treated_location'),
+              (pl.col('date') - pl.col('date').min()).dt.total_days().alias('date')
+          )
+          .group_by(['date', 'unit', 'treated_location', 'post_treatment'])
+          .agg(pl.col('value').mean().alias('value'))
+      )
+
+    def transform(self, X: pl.DataFrame) -> pl.DataFrame:
+        """
+        Transform the data based on the parameters defined when initializing class and the parameters extracted during [fit]
+        """
+        X = self._rename_treatment_units(X)
+        X = self._fill_missing_values(X)
+        if not self._verify_uniqueness(X):
+            X = self._group_data(X)
+        # X = self._normalize_data(X)
+        X = self._apply_default_names(X)
+        X = self.post_processings(X)
+        return X
