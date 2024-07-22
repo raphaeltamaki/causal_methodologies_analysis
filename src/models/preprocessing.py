@@ -53,6 +53,15 @@ class SyntheticControlPreProcessing:
             .group_by([self.treatment_col, self.date_col])
             .agg(pl.col(self.metric_col).sum())
         )
+    
+    
+    def _create_intervention_label(self, data):
+      return (
+          data
+          .with_columns(pl.when(
+              (pl.col(self.date_col) >= self.experiment_setup.treatment_start_date) & (pl.col(self.treatment_col) == pl.lit("target"))
+              ).then(1).otherwise(0).alias("intervention"))
+      )
 
     def _verify_uniqueness(self, data: pl.DataFrame) -> bool:
         """
@@ -204,7 +213,38 @@ class DifferenceInDifferencesPreProcessing(SyntheticControlPreProcessing):
         X = self._fill_missing_values(X)
         if not self._verify_uniqueness(X):
             X = self._group_data(X)
-        # X = self._normalize_data(X)
+        X = self._normalize_data(X)
+        X = self._apply_default_names(X)
+        X = self.post_processings(X)
+        return X
+
+
+class DoublyRobustPreProcessing(SyntheticControlPreProcessing):
+    """
+    Preprocessing for Difference-In-Differences Algorithm from CausalPy
+    Limiting to only using the same features as Synthetic Control
+    """
+
+    def post_processings(self, X: pl.DataFrame) -> pl.DataFrame:
+      """
+      Applies some last processing steps, depending on the required format, columns names the algorithms required
+      """
+      return (
+          X
+          .rename(lambda column_name: column_name.replace(' ', ''))
+          .to_dummies(columns=['id'])
+      )
+
+    def transform(self, X: pl.DataFrame) -> pl.DataFrame:
+        """
+        Transform the data based on the parameters defined when initializing class and the parameters extracted during [fit]
+        """
+        X = self._rename_treatment_units(X)
+        X = self._fill_missing_values(X)
+        if not self._verify_uniqueness(X):
+            X = self._group_data(X)
+        X = self._create_intervention_label(X)
+        X = self._normalize_data(X)
         X = self._apply_default_names(X)
         X = self.post_processings(X)
         return X
