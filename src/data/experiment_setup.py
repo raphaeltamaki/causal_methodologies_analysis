@@ -35,12 +35,28 @@ class ExperimentSetup:
         self.treated_units = None
         self.treatment_dates = None
         self.treatment_effect = None
+        self.true_ate = None
+        self.reference_value = None
 
     def _find_treatment_dates(self, data: pl.DataFrame) -> pl.DataFrame:
         return (data[self.date_col] >= self.treatment_start_date) & (data[self.date_col] <= self.treatment_end_date)
     
     def _get_treatment_effect(self, data: pl.DataFrame) -> pl.DataFrame:
         raise NotImplementedError
+
+    def store_true_ate(self, treated_data: pl.DataFrame) -> None:
+        """
+        Calculates and stores the (true) Average Treatment Effect
+        """
+        self.reference_value = (
+            treated_data
+            .filter(self.treated_units)
+            .group_by([self.date_col])
+            .agg(pl.col(self.target_col).sum())
+            .select(pl.col(self.target_col).mean())
+            .item() 
+        )
+        self.true_ate = self.reference_value * self.lift_size / (1+self.lift_size)
 
     def apply_treatment(self, data: pl.DataFrame) -> pl.DataFrame:
         """
@@ -58,8 +74,23 @@ class ExperimentSetup:
         # apply the treatment effect
         self.treatment_effect = self._get_treatment_effect(data) * self.treated_units
         output_data = data.with_columns((pl.col(self.target_col) * (1 + pl.Series(name="t", values=self.treatment_effect))).alias(self.target_col))
+        # Stores the true ATE
+        self.store_true_ate(output_data)
         return output_data
-    
+
+    def get_true_ate(self):
+        """
+        Returns the (true) ATE if treatment was applied
+        """
+        return self.true_ate
+
+    def get_reference_value(self):
+        """
+        Returns the reference value. That is, the average target balue if there was no treatment applied
+        """
+        return self.reference_value
+
+        
 
 class ConstantLiftExperiment(ExperimentSetup):
     def _get_treatment_effect(self, data: pl.DataFrame) -> pl.DataFrame:
