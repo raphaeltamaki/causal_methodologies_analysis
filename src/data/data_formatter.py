@@ -65,11 +65,16 @@ class BaseFormater():
             raise ValueError(f"Invalid value for discretization, please use either {DAY_DISCRETIZATION}, {MONTH_DISCRETIZATION}, {YEAR_DISCRETIZATION}")
 
     def _format_date_col(self, data: pl.DataFrame) -> pl.DataFrame:
+        if not isinstance(data.select(pl.col(self.date_col)).dtypes[0], pl.Datetime):
+            data = (
+                data
+                .with_columns(
+                    pl.col(self.date_col).str.to_datetime(self.date_format, strict=True)
+                    )
+            )
         return (
             data
-            .with_columns(
-                pl.col(self.date_col).str.to_datetime(self.date_format, strict=True)
-                )
+            
             .with_columns(self._discretize_date(self.date_col))
         )
     
