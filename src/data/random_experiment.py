@@ -67,7 +67,7 @@ class RandomConstantLiftExperiment():
         return self.dataset[self.data_formatter.date_col].min(), self.dataset[self.data_formatter.date_col].max()
 
     def _get_treatment_group(self):
-        eligible_groups_n = int(len(self.treatment_options) * self.eligible_treatment_percentage)
+        eligible_groups_n = max(int(len(self.treatment_options) * self.eligible_treatment_percentage), 1) # needs to get at least 1 group
         groups_n = random.randint(1, eligible_groups_n)
         return random.sample(self.treatment_options, groups_n)
 
