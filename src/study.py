@@ -96,7 +96,6 @@ class Study():
             .filter(pl.col("formated_date_col") > (pl.col("last_date") - n))
             .drop(["last_date", "formated_date_col"])
             )
-        return data
 
     def run(self):
         for dataset_name in self.datasets_names:
