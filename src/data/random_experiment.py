@@ -52,24 +52,23 @@ class RandomConstantLiftExperiment():
         self.dataset = self.data_formatter.fit_transform(raw_dataset)
         self.time_start, self.time_end = self._extract_time_limits()
         self.time_range = pd.date_range(self.time_start, self.time_end, freq=self.data_formatter.date_discretization)
-        self.treatment_options = self._extract_possible_treatment_options()
-
+        self.treatment_options = []
         self.experiment_setup = None
         
     
     def _get_data_formatter(self):
         return self.dataset_formatters[self.dataset_name]
 
-    def _extract_possible_treatment_options(self):
-        return list(self.dataset[self.data_formatter.treatment_col].unique())
+    def _extract_possible_treatment_options(self, treament_time):
+        return list(self.dataset.filter(pl.col(self.data_formatter.date_col) >= treament_time)[self.data_formatter.treatment_col].unique())
 
     def _extract_time_limits(self):
         return self.dataset[self.data_formatter.date_col].min(), self.dataset[self.data_formatter.date_col].max()
 
-    def _get_treatment_group(self):
-        eligible_groups_n = max(int(len(self.treatment_options) * self.eligible_treatment_percentage), 1) # needs to get at least 1 group
+    def _get_treatment_group(self, treatment_options: List[str]):
+        eligible_groups_n = max(int(len(treatment_options) * self.eligible_treatment_percentage), 1) # needs to get at least 1 group
         groups_n = random.randint(1, eligible_groups_n)
-        return random.sample(self.treatment_options, groups_n)
+        return random.sample(treatment_options, groups_n)
 
     def _get_treatment_time(self):
         start = max(1, int(self.eligible_treatment_period[0] * len(self.time_range)))
@@ -81,8 +80,9 @@ class RandomConstantLiftExperiment():
 
     def get_experiment(self) -> ConstantLiftExperiment:
 
-        treament_group = self._get_treatment_group()
         treament_time = self._get_treatment_time()
+        treatment_options = self._extract_possible_treatment_options(treament_time)
+        treament_group = self._get_treatment_group(treatment_options)
         lift_size = self._get_lift()
 
         return ConstantLiftExperiment(

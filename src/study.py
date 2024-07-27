@@ -1,4 +1,4 @@
-from typing import  List
+from typing import  Dict, List
 from pathlib import Path
 import polars as pl
 import pandas as pd
@@ -32,7 +32,8 @@ class Study():
             eligible_treatment_percentage: float=0.5,
             eligible_treatment_start_range: List[float]=[0.5, 0.5],
             lift_limit: float=1.0,
-            last_n_days: int=100) -> None:
+            last_n_days: int=100,
+            req_segments_frequency: float=0.5) -> None:
         self.datasets_names = datasets_names
         self.estimators_classes = estimators_classes
         self.experiment_class = experiment_class
@@ -43,6 +44,9 @@ class Study():
         self.eligible_treatment_start_range = eligible_treatment_start_range
         self.lift_limit = lift_limit
         self.last_n_days = last_n_days
+        self.req_segments_frequency = req_segments_frequency
+        self.infrequency_group_names = 'aggregated_places'
+        
         
 
         # To be used
@@ -96,6 +100,65 @@ class Study():
             .filter(pl.col("formated_date_col") > (pl.col("last_date") - n))
             .drop(["last_date", "formated_date_col"])
             )
+        
+    def _group_infrequent_segments(self, data: pl.DataFrame, formatter):
+        """
+        Group segments that don't appear at least req_frequency days in the dataset.
+        This is necessary to guarantee that the treated locations appear enough times in the dataset for a estimation to be possible
+        All segments that appear less than self.req_segments_frequency % of days in the dataset will be grouped together.
+        """
+        frequent_segments = (
+            formatter._format_date_col(data)
+            .with_columns(((pl.col(formatter.date_col).max() - pl.col(formatter.date_col).min()).dt.total_days() + 1).alias("total_days")) # +1 needed to make count include on dates
+            .group_by([formatter.treatment_col, "total_days"])
+            .agg((pl.col(formatter.date_col).n_unique()).alias("unique_dates"))
+            .with_columns(
+                (pl.col("unique_dates") / pl.col("total_days")).alias("frequency")
+            )
+            .sort("frequency")
+            # .drop(["unique_dates", "total_days"])
+            # .filter(pl.col('frequency') >= pl.lit(self.req_segments_frequency))
+        )
+        return frequent_segments
+        return (
+            data
+            .join(
+                frequent_segments,
+                on=formatter.treatment_col,
+                how="inner"
+            )
+            .with_columns(pl.when(pl.col('frequency') >= pl.lit(self.req_segments_frequency)).then(pl.col(formatter.id_col)).otherwise(self.infrequency_group_names).alias(formatter.treatment_col))
+            .drop("frequency")
+        )
+
+    @staticmethod
+    def _execute_experiment(estimator, treated_data: pl.DataFrame, ci: float=0.9) -> Dict[str, str]:
+        estimator.fit(treated_data)
+        stats = estimator.estimate_ate_distribution(treated_data)
+        return pd.DataFrame(
+            data={
+                "model": [estimator.__class__.__name__],
+                "estimated_ate": [estimator.estimate_ate(treated_data)],
+                "estimated_std": [stats[0]],
+                "estimated_lower_bound": [stats[1]],
+                "estimated_upper_bound": [stats[2]],
+                "ci": [ci],
+                }
+            )
+    @staticmethod
+    def _get_experiment_stats(it: int, dataset_name: str, setup) -> Dict[str, str]:
+        return {
+                "it": [it],
+                "dataset": [dataset_name],
+                "treated_groups": ['_'.join([str(group) for group in setup.experiment_setup.treated_groups])],
+                "lift_size": [setup.experiment_setup.lift_size],
+                "reference_value": [setup.experiment_setup.get_reference_value()],
+                "true_ate": [setup.experiment_setup.get_true_ate()]
+            }
+
+    @staticmethod
+    def _combine_stats(experiment_stats: Dict, estimates_stats: Dict) -> pd.DataFrame:
+        return pd.DataFrame(data={**experiment_stats, **estimates_stats})
 
     def run(self):
         for dataset_name in self.datasets_names:
@@ -107,39 +170,25 @@ class Study():
             data = self.filter_last_n_days(data, formatter, self.last_n_days)
             # Run experiments N types for all classes for each dataset
             for i in range(self.n_experiments):
+                # Create a new experiment
+                setup = self.experiment_class(
+                    dataset_name,
+                    data,
+                    eligible_treatment_percentage=self.eligible_treatment_percentage,
+                    eligible_treatment_period=self.eligible_treatment_start_range,
+                    lift_limit=self.lift_limit
+                )
+                treated_data = setup.get_treated_data()
                 for estimator_class in self.estimators_classes:
-                    # Create a new experiment
-                    setup = self.experiment_class(
-                        dataset_name,
-                        data,
-                        eligible_treatment_percentage=self.eligible_treatment_percentage,
-                        eligible_treatment_period=self.eligible_treatment_start_range,
-                        lift_limit=self.lift_limit
-                    )
-
-                    treated_data = setup.get_treated_data()
-
+                    
                     reg = estimator_class(setup.data_formatter, setup.experiment_setup)
-                    reg.fit(treated_data)
-
-                    stats = reg.estimate_ate_distribution(treated_data)
-                    results_data = pd.DataFrame(data={
-                        "it": [i],
-                        "dataset": [dataset_name],
-                        "treated_groups": ['_'.join(setup.experiment_setup.treated_groups)],
-                        "lift_size": [setup.experiment_setup.lift_size],
-                        "model": [reg.__class__.__name__],
-                        "reference_value": [setup.experiment_setup.get_reference_value()],
-                        "true_ate": [setup.experiment_setup.get_true_ate()],
-                        "estimated_ate": [reg.estimate_ate(treated_data)],
-                        "estimated_std": [stats[0]],
-                        "ci": [0.9],
-                        "estimated_lower_bound": [stats[1]],
-                        "estimated_upper_bound": [stats[2]],
-                    })
-
+                    # Combine the experiment stats
+                    experiment_stats = self._get_experiment_stats(i, dataset_name, setup)
+                    estimates = self._execute_experiment(reg, treated_data)
+                    results_data = self._combine_stats(experiment_stats, estimates)
+                    # Save the data
                     self.save_data = pd.concat([self.save_data, results_data], axis=0)
-                    self.save_data.to_csv(self.save_file_path,index = False)
+                    self.save_data.to_csv(self.save_file_path, index=False)
     
     def save_results(self):
         pass

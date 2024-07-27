@@ -74,9 +74,10 @@ class BaseFormater():
             )
         return (
             data
-            
             .with_columns(self._discretize_date(self.date_col))
         )
+    def _format_id_col(self, data: pl.DataFrame) ->pl.DataFrame:
+        return data
     
     def _filter_data(self, data: pl.DataFrame) -> pl.DataFrame:
         """
@@ -105,6 +106,7 @@ class BaseFormater():
 
     def transform(self, X: pl.DataFrame) -> pl.DataFrame:
         X = self._format_date_col(X)
+        X = self._format_id_col(X)
         X = self._remove_extra_cols(X)
         X = self._transform_target(X)
         X = self._filter_data(X)
@@ -154,6 +156,9 @@ class WallmartSalesFormatter(BaseFormater):
                  feature_cols: List[str] = ["Temperature", "Fuel_Price", "CPI", "Unemployment"],
                  date_format: str = '%d-%m-%Y') -> None:
         super().__init__(id_col, treatment_col, date_col, target_col, feature_cols, date_format)
+
+    # def _format_id_col(self, data: pl.DataFrame) ->pl.DataFrame:
+    #     return data.with_columns(pl.col(self.id_col).cast(pl.String).alias(self.id_col))
 
 
 class SuperstoreSalesFormatter(BaseFormater):

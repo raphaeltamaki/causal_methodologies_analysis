@@ -63,6 +63,27 @@ class DataLoader:
                 )
             else:
                 print(f"Dataset {dataset_name} already present\n")
+    @staticmethod
+    def get_file_name(dataset_name) -> Path:
+        """
+        Get the correct file to load, given that some datasets actually consists of multiple files
+        """
+        if dataset_name == "nifty50_stock_market":
+            return Path("NIFTY50_all.csv")
+        elif dataset_name == "climate_change_earth_temperature":
+            return Path("GlobalLandTemperaturesByState.csv")
+        elif dataset_name == "corona":
+            return Path("time_series_covid_19_confirmed.csv")
+        elif dataset_name == "lifetime_value":
+            return Path("test.csv")
+        elif dataset_name == "wallmart_sales":
+            return Path("Walmart.csv")
+        elif dataset_name == "superstore_sales":
+            return Path("train.csv")
+        elif dataset_name == "supermarket_sales":
+            return Path("supermarket_sales - Sheet1.csv")
+        elif dataset_name == "iowa_licor_sales":
+            return Path("Iowa_Liquor_Sales.csv")
 
     def load_dataset(self, dataset_name: str) -> pl.DataFrame:
         """
@@ -77,7 +98,7 @@ class DataLoader:
 
         # finds all files that are present in the path and get the first one if more than one exists
         file_path = self.data_path / Path(dataset_name)
-        file_name = list(file_path.glob('*.csv'))[0].resolve()
+        file_name = self.get_file_name(dataset_name)
         print(file_name)
         return pl.read_csv(file_path / file_name)
 
