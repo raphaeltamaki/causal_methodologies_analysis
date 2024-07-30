@@ -120,28 +120,19 @@ class Study():
             # .filter(pl.col('frequency') >= pl.lit(self.req_segments_frequency))
         )
         return frequent_segments
-        return (
-            data
-            .join(
-                frequent_segments,
-                on=formatter.treatment_col,
-                how="inner"
-            )
-            .with_columns(pl.when(pl.col('frequency') >= pl.lit(self.req_segments_frequency)).then(pl.col(formatter.id_col)).otherwise(self.infrequency_group_names).alias(formatter.treatment_col))
-            .drop("frequency")
-        )
+
 
     @staticmethod
     def _execute_experiment(estimator, treated_data: pl.DataFrame, ci: float=0.9) -> Dict[str, str]:
         estimator.fit(treated_data)
-        stats = estimator.estimate_ate_distribution(treated_data)
+        std, lower_bound, upper_bound = estimator.estimate_ate_distribution(treated_data)
         return pd.DataFrame(
             data={
                 "model": [estimator.__class__.__name__],
                 "estimated_ate": [estimator.estimate_ate(treated_data)],
-                "estimated_std": [stats[0]],
-                "estimated_lower_bound": [stats[1]],
-                "estimated_upper_bound": [stats[2]],
+                "estimated_std": [std],
+                "estimated_lower_bound": [lower_bound],
+                "estimated_upper_bound": [upper_bound],
                 "ci": [ci],
                 }
             )
@@ -188,7 +179,7 @@ class Study():
                     results_data = self._combine_stats(experiment_stats, estimates)
                     # Save the data
                     self.save_data = pd.concat([self.save_data, results_data], axis=0)
-                    self.save_data.to_csv(self.save_file_path, index=False)
+                self.save_data.to_csv(self.save_file_path, index=False)
     
     def save_results(self):
         pass
