@@ -11,7 +11,7 @@ from src.data.experiment_setup import ExperimentSetup
 from src.data.data_formatter import BaseFormater
 
 
-class TLearner:
+class SLearner:
 
     def __init__(self, formatter: BaseFormater, experiment_setup: ExperimentSetup, learner: BaseTRegressor=None, bootstrap_samples: int=100):
         self.learner = XGBTRegressor(ate_alpha=0.10) if learner is None else learner
