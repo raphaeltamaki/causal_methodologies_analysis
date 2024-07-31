@@ -162,6 +162,7 @@ class Study():
             # Run experiments N types for all classes for each dataset
             for i in range(self.n_experiments):
                 # Create a new experiment
+                print(f"Running iteration {i} for {dataset_name}")
                 setup = self.experiment_class(
                     dataset_name,
                     data,
