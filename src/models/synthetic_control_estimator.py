@@ -42,7 +42,7 @@ class SyntheticControlEstimator:
                 sample_kwargs=self.weighted_sum_fitter_kwargs
             ),
         )
-        self.ate_samples = np.mean(self.result.post_impact_cumulative, axis=2)
+        self.ate_samples = np.mean(self.result.post_impact, axis=2)
 
     def predict(self, data: pl.DataFrame) -> pd.Series:
         raise NotImplementedError
