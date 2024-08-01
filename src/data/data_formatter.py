@@ -77,7 +77,7 @@ class BaseFormater():
             .with_columns(self._discretize_date(self.date_col))
         )
     def _format_id_col(self, data: pl.DataFrame) ->pl.DataFrame:
-        return data.with_columns(pl.col(self.id_col).str.replace_all("[[:^alpha:]]", "").alias(self.id_col))
+        return data.with_columns(pl.col(self.id_col).str.replace_all("[^0-9a-zA-Z]+", "").alias(self.id_col))
     
     def _filter_data(self, data: pl.DataFrame) -> pl.DataFrame:
         """
