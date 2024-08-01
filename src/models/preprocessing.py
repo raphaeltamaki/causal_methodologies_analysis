@@ -294,6 +294,7 @@ class DifferenceInDifferencesPreProcessing(BasePreProcessing):
         X = self._normalize_data(X)
         X = self._apply_default_names(X)
         X = self.post_processings(X)
+        self.store_variables(X)
         return X
 
 
@@ -325,6 +326,7 @@ class DoublyRobustPreProcessing(BasePreProcessing):
         X = self._normalize_data(X)
         X = self._apply_default_names(X)
         X = self.post_processings(X)
+        self.store_variables(X)
         return X
 
 class MetaLearnerPreProcessing(BasePreProcessing):
@@ -356,4 +358,5 @@ class MetaLearnerPreProcessing(BasePreProcessing):
         X = self._normalize_data(X)
         X = self._apply_default_names(X)
         X = self.post_processings(X)
+        self.store_variables(X)
         return X

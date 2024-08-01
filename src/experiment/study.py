@@ -116,8 +116,6 @@ class Study():
                 (pl.col("unique_dates") / pl.col("total_days")).alias("frequency")
             )
             .sort("frequency")
-            # .drop(["unique_dates", "total_days"])
-            # .filter(pl.col('frequency') >= pl.lit(self.req_segments_frequency))
         )
         return frequent_segments
 
