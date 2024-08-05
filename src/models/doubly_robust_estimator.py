@@ -87,6 +87,14 @@ class DoublyRobustEstimator:
         ates = Parallel(n_jobs=self.n_jobs)(delayed(self._bootstrap_ate)(pandas_data)
                             for _ in range(self.bootstrap_samples))
         return np.std(ates), np.percentile(ates, 5), np.percentile(ates, 95)
+    
+    def estimate_att(self, data: pl.DataFrame) -> float:
+        pandas_data = self.preprocessing.transform(data).to_pandas()
+        # get only data about Treated unites 
+        pandas_data = pandas_data.query(f"{self.T}==1")
+        std = self.preprocessing.get_treated_stats()[1]
+        avg = self._predict_learners(pandas_data).mean()
+        return float(avg * std)
 
     def _bootstrap_att(self, pandas_data: pd.DataFrame) -> pd.DataFrame:
         idxs = np.random.choice(np.arange(0, pandas_data.shape[0]), size=pandas_data.shape[0])
