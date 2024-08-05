@@ -29,21 +29,27 @@ class DoublyRobustEstimator:
         self.bootstrap_samples = bootstrap_samples
         self.n_jobs = n_jobs
 
-    def fit(self, data: pl.DataFrame) -> None:
-        # Transform Data and store the variables
-        pandas_data = self.preprocessing.fit_transform(data).to_pandas()
+
+    def _store_variables(self, pandas_data: pd.DataFrame) -> None:
         self.T = self.preprocessing.T_variable
         self.y = self.preprocessing.y_variable
-        self.X = self.preprocessing.X_variables
-
+        self.X = list(pandas_data.columns.drop([self.preprocessing.default_date_col, self.T, self.y]))
+    
+    def _train_learners(self, pandas_data: pd.DataFrame) -> None:
         self.treatment_clasifier.fit(pandas_data[self.X], pandas_data[self.T])
         self.mu_reg_control.fit(pandas_data.query(f"{self.T}==0")[self.X], pandas_data.query(f"{self.T}==0")[self.y])
         self.mu_reg_treat.fit(pandas_data.query(f"{self.T}==1")[self.X], pandas_data.query(f"{self.T}==1")[self.y])
 
-    def predict(self, data: pl.DataFrame, filter_treated: bool=False) -> pd.Series:
-        pandas_data = self.preprocessing.transform(data).to_pandas()
-        if filter_treated:
-            pandas_data = pandas_data.query(f"{self.T}==1")
+    def fit(self, data: pl.DataFrame) -> None:
+        # Transform Data and store the variables
+        pandas_data = self.preprocessing.fit_transform(data).to_pandas()
+        # Store variables
+        self._store_variables(pandas_data)
+        # Train learners
+        self._train_learners(pandas_data)
+
+
+    def _predict_learners(self, pandas_data: pd.DataFrame) -> pd.Series:
         ps = self.treatment_clasifier.predict_proba(pandas_data[self.X])[:, 1]
         mu0 = self.mu_reg_control.predict(pandas_data[self.X])
         mu1 = self.mu_reg_treat.predict(pandas_data[self.X])
@@ -51,27 +57,51 @@ class DoublyRobustEstimator:
             (pandas_data[self.T]*(pandas_data[self.y] - mu1)/ps + mu1) -
             ((1-pandas_data[self.T])*(pandas_data[self.y] - mu0)/(1-ps) + mu0)
         )
+        
+    def predict(self, data: pl.DataFrame) -> pd.Series:
+        pandas_data = self.preprocessing.transform(data).to_pandas()
+        return self._predict_learners(pandas_data)
 
     def fit_predict(self, data: pl.DataFrame) -> pd.Series:
         self.fit(data)
         return self.predict(data)
 
     def estimate_ate(self, data: pl.DataFrame) -> float:
+        avg = self.predict(data).mean()
         std = self.preprocessing.get_treated_stats()[1]
-        return self.predict(data).mean() * std
+        return float(avg * std)
+
+    def _bootstrap_ate(self, pandas_data: pd.DataFrame) -> pd.DataFrame:
+        idxs = np.random.choice(np.arange(0, pandas_data.shape[0]), size=pandas_data.shape[0])
+        self._train_learners(pandas_data.iloc[idxs])
+        # Predict on the original dataset, based on the model trained on sampled data
+        avg = self._predict_learners(pandas_data).mean()
+        std = self.preprocessing.get_treated_stats()[1]
+        return float(avg * std)
   
     def estimate_ate_distribution(self, data: pl.DataFrame) -> Tuple[float]:
-        ates = Parallel(n_jobs=self.n_jobs)(delayed(self.estimate_ate)(data.sample(fraction=1, with_replacement=True))
+        pandas_data = self.preprocessing.transform(data).to_pandas()
+        # Store variables
+        self._store_variables(pandas_data)
+        # Train T-Learner
+        ates = Parallel(n_jobs=self.n_jobs)(delayed(self._bootstrap_ate)(pandas_data)
                             for _ in range(self.bootstrap_samples))
-        ates = np.array(ates)
         return np.std(ates), np.percentile(ates, 5), np.percentile(ates, 95)
 
-    def estimate_att(self, data: pl.DataFrame) -> float:
+    def _bootstrap_att(self, pandas_data: pd.DataFrame) -> pd.DataFrame:
+        idxs = np.random.choice(np.arange(0, pandas_data.shape[0]), size=pandas_data.shape[0])
+        self._train_learners(pandas_data.iloc[idxs])
+        # Predict on the original dataset, based on the model trained on sampled data
+        pandas_treated_data = pandas_data.query(f"{self.T}==1")
+        avg = self._predict_learners(pandas_data).mean()
         std = self.preprocessing.get_treated_stats()[1]
-        return self.predict(data, filter_treated=True).mean() * std
-    
-    def estimate_att_distribution(self, data: pl.DataFrame) -> Tuple[float]:
-        atts = Parallel(n_jobs=self.n_jobs)(delayed(self.estimate_att)(data.sample(fraction=1, with_replacement=True))
+        return float(avg * std)
+
+    def estimate_att_distribution(self, data: pd.DataFrame) -> Tuple[float]:
+        pandas_data = self.preprocessing.transform(data).to_pandas()
+        # Store variables
+        self._store_variables(pandas_data)
+        # Train T-Learner
+        ates = Parallel(n_jobs=self.n_jobs)(delayed(self._bootstrap_att)(pandas_data)
                             for _ in range(self.bootstrap_samples))
-        atts = np.array(atts)
-        return np.std(atts), np.percentile(atts, 5), np.percentile(atts, 95)
+        return np.std(ates), np.percentile(ates, 5), np.percentile(ates, 95)
