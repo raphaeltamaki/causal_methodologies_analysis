@@ -50,9 +50,15 @@ class SyntheticControlEstimator:
     def fit_predict(self, data: pl.DataFrame) -> pd.Series:
         self.fit(data)
         return self.predict(data)
-
+    
     def estimate_ate(self, data: pl.DataFrame) -> float:
+        raise NotImplementedError
+    
+    def estimate_ate_distribution(self, data: pl.DataFrame) -> float:
+        raise NotImplementedError
+
+    def estimate_att(self, data: pl.DataFrame) -> float:
         return float(self.ate_samples.mean())
   
-    def estimate_ate_distribution(self, data: pl.DataFrame) -> Tuple[float]:
+    def estimate_att_distribution(self, data: pl.DataFrame) -> Tuple[float]:
         return float(np.std(self.ate_samples)), np.percentile(self.ate_samples, 5), np.percentile(self.ate_samples, 95)
