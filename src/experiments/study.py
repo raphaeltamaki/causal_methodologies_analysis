@@ -123,11 +123,11 @@ class Study():
     @staticmethod
     def _execute_experiment(estimator, treated_data: pl.DataFrame, ci: float=0.9) -> Dict[str, str]:
         estimator.fit(treated_data)
-        std, lower_bound, upper_bound = estimator.estimate_ate_distribution(treated_data)
+        std, lower_bound, upper_bound = estimator.estimate_att_distribution(treated_data)
         return pd.DataFrame(
             data={
                 "model": [estimator.__class__.__name__],
-                "estimated_ate": [estimator.estimate_ate(treated_data)],
+                "estimated_ate": [estimator.estimate_att(treated_data)],
                 "estimated_std": [std],
                 "estimated_lower_bound": [lower_bound],
                 "estimated_upper_bound": [upper_bound],
