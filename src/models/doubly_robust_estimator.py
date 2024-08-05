@@ -40,8 +40,10 @@ class DoublyRobustEstimator:
         self.mu_reg_control.fit(pandas_data.query(f"{self.T}==0")[self.X], pandas_data.query(f"{self.T}==0")[self.y])
         self.mu_reg_treat.fit(pandas_data.query(f"{self.T}==1")[self.X], pandas_data.query(f"{self.T}==1")[self.y])
 
-    def predict(self, data: pl.DataFrame) -> pd.Series:
+    def predict(self, data: pl.DataFrame, filter_treated: bool=False) -> pd.Series:
         pandas_data = self.preprocessing.transform(data).to_pandas()
+        if filter_treated:
+            pandas_data = pandas_data.query(f"{self.T}==1")
         ps = self.treatment_clasifier.predict_proba(pandas_data[self.X])[:, 1]
         mu0 = self.mu_reg_control.predict(pandas_data[self.X])
         mu1 = self.mu_reg_treat.predict(pandas_data[self.X])
@@ -62,5 +64,14 @@ class DoublyRobustEstimator:
         ates = Parallel(n_jobs=self.n_jobs)(delayed(self.estimate_ate)(data.sample(fraction=1, with_replacement=True))
                             for _ in range(self.bootstrap_samples))
         ates = np.array(ates)
-        std = self.preprocessing.get_treated_stats()[1]
         return np.std(ates), np.percentile(ates, 5), np.percentile(ates, 95)
+
+    def estimate_att(self, data: pl.DataFrame) -> float:
+        std = self.preprocessing.get_treated_stats()[1]
+        return self.predict(data, filter_treated=True).mean() * std
+    
+    def estimate_att_distribution(self, data: pl.DataFrame) -> Tuple[float]:
+        atts = Parallel(n_jobs=self.n_jobs)(delayed(self.estimate_att)(data.sample(fraction=1, with_replacement=True))
+                            for _ in range(self.bootstrap_samples))
+        atts = np.array(atts)
+        return np.std(atts), np.percentile(atts, 5), np.percentile(atts, 95)
