@@ -89,7 +89,7 @@ class SLearner:
         self._train_learners(pandas_data.iloc[idxs])
         # Predict on the original dataset, based on the model trained on sampled data
         pandas_treated_data = pandas_data.query(f"{self.T}==1")
-        avg = self._predict_learners(pandas_data).mean()
+        avg = self._predict_learners(pandas_treated_data).mean()
         std = self.preprocessing.get_treated_stats()[1]
         return float(avg * std)
 
