@@ -4,7 +4,7 @@ import polars as pl
 import pandas as pd
 import numpy as np
 
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, HistGradientBoostingRegressor
 
 from src.data.experiment_setup import ExperimentSetup
 from src.data.data_formatter import BaseFormater
@@ -105,11 +105,12 @@ class SLearner:
 
 class GranularSLearner(SLearner):
 
-    def __init__(self, formatter: BaseFormater, experiment_setup: ExperimentSetup, learner: RandomForestRegressor=None, bootstrap_samples: int=100, n_jobs: int=4, random_state: int=None):
+    def __init__(self, formatter: BaseFormater, experiment_setup: ExperimentSetup, learner: RandomForestRegressor=None, bootstrap_samples: int=100, n_jobs: int=4, random_state: int=None, sample_size: int=None):
         super().__init__(formatter, experiment_setup ,learner, bootstrap_samples, n_jobs, random_state)
-        self.learner = RandomForestRegressor(random_state=random_state) if learner is None else learner
+        self.learner = HistGradientBoostingRegressor(random_state=random_state) if learner is None else learner
         self.preprocessing = GranularMetaLearnerPreProcessing(formatter, experiment_setup)
         self.ml_prepocessing = RandomForestPreprocessing()
+        self.sample_size = 5000 if sample_size is None else sample_size
 
     def _store_variables(self, pandas_data: pd.DataFrame) -> None:
         self.T = self.preprocessing.T_variable
@@ -136,3 +137,12 @@ class GranularSLearner(SLearner):
             .reset_index()
             )
         return agg_predictions['prediction'].to_numpy()
+    
+    def _bootstrap_att(self, pandas_data: pd.DataFrame) -> pd.DataFrame:
+        idxs = np.random.choice(np.arange(0, pandas_data.shape[0]), size=self.sample_size)
+        self._train_learners(pandas_data.iloc[idxs])
+        # Predict on the original dataset, based on the model trained on sampled data
+        pandas_treated_data = pandas_data.query(f"{self.T}==1")
+        avg = self._predict_learners(pandas_treated_data).mean()
+        std = self.preprocessing.get_treated_stats()[1]
+        return float(avg * std)
