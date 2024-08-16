@@ -360,3 +360,61 @@ class MetaLearnerPreProcessing(BasePreProcessing):
         X = self.post_processings(X)
         self.store_variables(X)
         return X
+    
+class GranularMetaLearnerPreProcessing(BasePreProcessing):
+    """
+    Preprocessing for Meta_learners from CausalML
+    Limiting to only using the same features as Synthetic Control
+    """
+
+    def _normalize_data(self, data: pl.DataFrame) -> pl.DataFrame:
+        """
+        Normalize the values based on the mean and standard deviation
+        previously extracted
+        """
+        return  (
+            data
+            .join(self.segments_stats, on=[self.treatment_col], how='left')
+            .join(self.global_stat, how='cross')
+            .drop(['avg', 'std', 'global_avg', 'global_std'])
+        )
+
+    def get_treated_stats(self):
+        return 0, 1
+        
+    def post_processings(self, X: pl.DataFrame) -> pl.DataFrame:
+        """
+        Applies some last processing steps, depending on the required format, columns names the algorithms required
+        """
+        return (
+            X
+            .with_columns(pl.col("id_num").alias("id"))
+            .drop(["id_num"])
+            .rename(lambda column_name: column_name.replace(' ', ''))
+        )
+
+    def fit(self, X: pl.DataFrame, y: pl.Series=None) -> None:
+        """
+        Use the provided that to extract parameters needed to transform the data
+        """
+        X = self._filter_for_pretreatment(X)
+        X = self._fill_missing_values(X)
+        X = self._rename_treatment_units(X)
+        # if not self._verify_uniqueness(X):
+        #     X = self._group_data(X)
+        self._set_mean_and_std(X)
+
+    def transform(self, X: pl.DataFrame) -> pl.DataFrame:
+        """
+        Transform the data based on the parameters defined when initializing class and the parameters extracted during [fit]
+        """
+        X = self._rename_treatment_units(X)
+        X = self._fill_missing_values(X)
+        # if not self._verify_uniqueness(X):
+        #     X = self._group_data(X)
+        X = self._create_intervention_label(X)
+        X = self._normalize_data(X)
+        X = self._apply_default_names(X)
+        X = self.post_processings(X)
+        self.store_variables(X)
+        return X
