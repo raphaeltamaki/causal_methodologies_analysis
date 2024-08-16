@@ -177,7 +177,7 @@ class RandomForestPreprocessing(TreeBasedModelPreprocessing):
         return (
             data[column]
             .map(self.categorical_labels_map[column]["value_to_code"])
-            .fillna(-1)
+            # .fillna(-1)
         )  # map categories and fill if the category is new
 
     def _decode_cat_column(self, data: pd.DataFrame, column: str) -> pd.Series:
