@@ -6,9 +6,10 @@ import numpy as np
 
 from sklearn.ensemble import RandomForestRegressor
 
-from src.models.preprocessing import MetaLearnerPreProcessing
 from src.data.experiment_setup import ExperimentSetup
 from src.data.data_formatter import BaseFormater
+from src.models.preprocessing import MetaLearnerPreProcessing, GranularMetaLearnerPreProcessing
+from src.models.MLPreprocessing import RandomForestPreprocessing
 
 
 class SLearner:
@@ -100,3 +101,38 @@ class SLearner:
         ates = Parallel(n_jobs=self.n_jobs)(delayed(self._bootstrap_att)(pandas_data)
                             for _ in range(self.bootstrap_samples))
         return np.std(ates), np.percentile(ates, 5), np.percentile(ates, 95)
+    
+
+class GranularSLearner(SLearner):
+
+    def __init__(self, formatter: BaseFormater, experiment_setup: ExperimentSetup, learner: RandomForestRegressor=None, bootstrap_samples: int=100, n_jobs: int=4, random_state: int=None):
+        super().__init__(formatter, experiment_setup ,learner, bootstrap_samples, n_jobs, random_state)
+        self.learner = RandomForestRegressor(random_state=random_state) if learner is None else learner
+        self.preprocessing = GranularMetaLearnerPreProcessing(formatter, experiment_setup)
+        self.ml_prepocessing = RandomForestPreprocessing()
+
+    def _store_variables(self, pandas_data: pd.DataFrame) -> None:
+        self.T = self.preprocessing.T_variable
+        self.y = self.preprocessing.y_variable
+        self.X = list(pandas_data.columns.drop([self.preprocessing.default_date_col, self.T, self.y]))
+        self.X = [col for col in self.X if col not in ['user_id']]
+
+    def _train_learners(self, pandas_data: pd.DataFrame) -> None:
+        X = pandas_data[self.X + [self.T]].copy()
+        X = self.ml_prepocessing.fit_transform(X)
+        self.learner.fit(X=X, y=pandas_data[self.y])
+
+    def _predict_learners(self, pandas_data: pd.DataFrame) -> pd.Series:
+        X = pandas_data[self.X + [self.T]]
+        X = self.ml_prepocessing.transform(X)
+        pandas_data['prediction'] = (
+            self.learner.predict(X.assign(**{self.T: 1})) - # predict under treatment
+            self.learner.predict(X.assign(**{self.T: 0}))   # predict under control
+            )
+        agg_predictions = (
+            pandas_data
+            .groupby([self.preprocessing.default_id_col, self.preprocessing.default_date_col])
+            ['prediction'].sum()
+            .reset_index()
+            )
+        return agg_predictions['prediction'].to_numpy()
