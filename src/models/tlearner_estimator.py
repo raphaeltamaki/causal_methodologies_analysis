@@ -13,9 +13,9 @@ from src.data.data_formatter import BaseFormater
 
 class TLearner:
 
-    def __init__(self, formatter: BaseFormater, experiment_setup: ExperimentSetup, bootstrap_samples: int=100, n_jobs: int=4):
-        self.learner_control = RandomForestRegressor()
-        self.learner_treat = RandomForestRegressor() 
+    def __init__(self, formatter: BaseFormater, experiment_setup: ExperimentSetup, bootstrap_samples: int=100, n_jobs: int=4, random_state=random_state):
+        self.learner_control = RandomForestRegressor(random_state=random_state)
+        self.learner_treat = RandomForestRegressor(random_state=random_state) 
         self.preprocessing = MetaLearnerPreProcessing(formatter, experiment_setup)
         self.bootstrap_samples = bootstrap_samples
         self.n_jobs = n_jobs
