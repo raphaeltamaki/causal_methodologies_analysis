@@ -191,7 +191,7 @@ class BasePreProcessing:
         X = self._fill_missing_values(X)
         if not self._verify_uniqueness(X):
             X = self._group_data(X)
-        # X = self._normalize_data(X)
+        X = self._normalize_data(X)
         X = self._apply_default_names(X)
         X = X.pivot(
             index="date",
@@ -251,13 +251,49 @@ class SyntheticControlPreProcessing(BasePreProcessing):
     """
     Preprocessing for Synthetic Control using CausalPy with pymc models
     """
+    def _normalize_data(self, data: pl.DataFrame) -> pl.DataFrame:
+        """
+        Normalize the values based on the mean and standard deviation
+        previously extracted
+        """
+        return  (
+            data
+            .join(self.segments_stats, on=[self.treatment_col], how='left')
+            .join(self.global_stat, how='cross')
+            # use segment specific std and mean if possible
+            # otherwise, use global values
+            .with_columns(
+                pl.when(pl.col('std').is_not_nan())
+                .then((pl.col(self.metric_col) / pl.col('avg')))
+                .otherwise((pl.col(self.metric_col) / pl.col('global_avg')))
+                .alias(self.metric_col)
+            )
+            .drop(['avg', 'std', 'global_avg', 'global_std'])
+        )
     def post_processings(self, X: pl.DataFrame) -> pl.DataFrame:
         """
         Applies some last processing steps, depending on the required format, columns names the algorithms required
         """
         return X.rename(lambda column_name: column_name.replace(' ', ''))
+    
 
     
+
+class SyntheticControlLinRegPreProcessing(BasePreProcessing):
+    """
+    Preprocessing for Synthetic Control using CausalPy with pymc models
+    But for the one using LinRegression as base model instead of WeightedSumFitter
+    """
+
+    def post_processings(self, X: pl.DataFrame) -> pl.DataFrame:
+        """
+        Applies some last processing steps, depending on the required format, columns names the algorithms required
+        """
+        return X.rename(lambda column_name: column_name.replace(' ', ''))
+    
+
+    
+
 class DifferenceInDifferencesPreProcessing(BasePreProcessing):
     """
     Preprocessing for Difference-In-Differences Algorithm from CausalPy with pymc models
