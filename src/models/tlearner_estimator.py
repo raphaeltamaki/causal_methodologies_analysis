@@ -144,7 +144,7 @@ class GranularTLearner(TLearner):
         return agg_predictions['prediction'].to_numpy()
     
     def _bootstrap_ate(self, pandas_data: pd.DataFrame) -> pd.DataFrame:
-        idxs = np.random.choice(np.arange(0, pandas_data.shape[0]), size=size=self.sample_size)
+        idxs = np.random.choice(np.arange(0, pandas_data.shape[0]), size=self.sample_size)
         self._train_learners(pandas_data.iloc[idxs])
         # Predict on the original dataset, based on the model trained on sampled data
         avg = self._predict_learners(pandas_data).mean()
