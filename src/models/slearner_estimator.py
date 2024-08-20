@@ -116,7 +116,7 @@ class GranularSLearner(SLearner):
         self.T = self.preprocessing.T_variable
         self.y = self.preprocessing.y_variable
         self.X = list(pandas_data.columns.drop([self.preprocessing.default_date_col, self.T, self.y]))
-        self.X = [col for col in self.X if col not in ['user_id']]
+        self.X = [col for col in self.X if col not in ['user_id', 'id']]
 
     def _train_learners(self, pandas_data: pd.DataFrame) -> None:
         X = pandas_data[self.X + [self.T]].copy()
@@ -137,6 +137,9 @@ class GranularSLearner(SLearner):
             .reset_index()
             )
         return agg_predictions['prediction'].to_numpy()
+
+    def _bootstrap_ate(self, pandas_data: pd.DataFrame) -> pd.DataFrame:
+        raise NotImplementedError
     
     def _bootstrap_att(self, pandas_data: pd.DataFrame) -> pd.DataFrame:
         idxs = np.random.choice(np.arange(0, pandas_data.shape[0]), size=self.sample_size)
