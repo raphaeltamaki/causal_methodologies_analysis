@@ -40,8 +40,6 @@ class LocalDataLoader:
         """Load dataset from the local file path."""
         if self.data_format == 'csv':
             return pl.read_csv(self.data_path)
-        if self.data_format == 'excel':
-            return pl.read_excel(self.data_path)
         if self.data_format == 'ipc':
             return pl.read_ipc(self.data_path)
         if self.data_format == 'json':

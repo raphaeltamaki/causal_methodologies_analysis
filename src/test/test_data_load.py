@@ -25,8 +25,8 @@ def test_kaggle_api():
 def test_local_data_loader():
     """Test methods to load local data"""
     
-    data_types = ['csv', 'json', 'ipc', 'excel']
-    data_path = ".data/"
+    data_types = ['csv', 'json', 'ipc',]
+    data_path = os.getcwd() + "/src/test/data/load_data."
     for data_type in data_types:
-        assert isinstance(LocalDataLoader(data_path=data_path, data_format=data_type), pl.DataFrame)
-        assert LocalDataLoader(data_path=data_path, data_format=data_type)
+        assert isinstance(LocalDataLoader(data_path=data_path + data_type, data_format=data_type).load_data(), pl.DataFrame), f"Not able to load {data_type} format file"
+        assert LocalDataLoader(data_path=data_path + data_type, data_format=data_type).load_data().shape == (10, 4), "Data loaded didn't have the expected number of columns and/or columns"
