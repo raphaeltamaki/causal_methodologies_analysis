@@ -10,5 +10,6 @@ class CreatePathIfNotExists(Protocol):
 class CreateLocalDirectoryIfNotExists:
     """Mixin to create a directory if it doesn't exists"""
     def create_path_if_not_exists(self, path: Path) -> None:
+        """Checks if the folder given exists. If it doesn't, creates"""
         if not os.path.exists(path):
             os.makedirs(path)
