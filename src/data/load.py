@@ -1,11 +1,67 @@
+from dataclasses import dataclass
 import polars as pl
 import kaggle
 import os
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Protocol
 
 
-class DataLoader:
+class DataPuller(Protocol):
+    """Protocol for classes that implement pull_data()"""
+    def pull_data(self, data_path: Path) -> None:
+        """Pulls data from a remote repository"""
+
+
+class DataLoader(Protocol):
+    """Protocol for classes that implement load_data()"""
+    def load_data(self) -> pl.DataFrame:
+        """Outputs the data"""
+
+@dataclass
+class KaggleDataPuller:
+    """Pulls a dataset from Kaggle"""
+    kaggle_dataset_address: str
+    unzip: bool = True
+
+    def pull_data(self, data_path: Path) -> None:
+        """Pulls data from kaggle and stores it the folder path"""
+        kaggle.api.authenticate()
+        kaggle.api.dataset_download_files(
+                    self.kaggle_dataset_address, path=data_path, unzip=self.unzip
+                )
+@dataclass    
+class LocalDataLoader:
+    """Loads data stored locally"""
+    data_path: Path
+    data_format: str = 'csv'
+   
+    def load_data(self) -> pl.DataFrame:
+        """Load dataset from the local file path."""
+        if self.data_format == 'csv':
+            return pl.read_csv(self.data_path)
+        if self.data_format == 'delta':
+            return pl.read_delta(self.data_path)
+        if self.data_format == 'excel':
+            return pl.read_excel(self.data_path)
+        if self.data_format == 'ipc':
+            return pl.read_ipc(self.data_path)
+        if self.data_format == 'json':
+            return pl.read_json(self.data_path)
+
+        raise ValueError(
+            "{self.data_format} is not a valid data format. The accepted formats are 'csv', 'delta', 'json', and 'ipc'"
+            )
+
+class CreateLocalDirectoryIfNotExists:
+    """Mixin to create a directory if it doesn't exists"""
+    def create_path_if_not_exists(self, path: Path) -> None:
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+class LocalKaggleDataPullerLoader(KaggleDataPuller, LocalDataLoader):
+    """Downlods a dataset from Kaggle in a local directory, and loads it"""
+
+class DataLoader2:
     """
     This class is responsible for downloading the data that is required for the analysis
     It is meant to simply download all the relevant datasets in the local enviroment and read it
@@ -63,6 +119,7 @@ class DataLoader:
                 )
             else:
                 print(f"Dataset {dataset_name} already present\n")
+
     @staticmethod
     def get_file_name(dataset_name) -> Path:
         """
