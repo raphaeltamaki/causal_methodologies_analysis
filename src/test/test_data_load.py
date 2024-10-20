@@ -13,7 +13,7 @@ def test_kaggle_api():
     CreateLocalDirectoryIfNotExists().create_path_if_not_exists(local_path)
     assert len(os.listdir(local_path)) == 0, "Folder is not empty, so test won't properly be able to validate execution"
     
-    KaggleDataPuller(dataset).pull_data(local_path)
+    KaggleDataPuller(dataset, local_path).pull_data()
     assert len(os.listdir(local_path)) > 0, "Error: No data was downloaded"
     assert data_name in os.listdir(local_path), f"Error: cannot find {data_name}"
 
