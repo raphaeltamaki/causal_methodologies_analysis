@@ -33,17 +33,15 @@ class DataLoader(Protocol):
 @dataclass    
 class LocalDataLoader:
     """Loads data stored locally"""
-    data_path: Path
-    data_format: str = 'csv'
    
-    def load_data(self) -> pl.DataFrame:
+    def load_local_data(self, data_path: Path, data_format: str="csv") -> pl.DataFrame:
         """Load dataset from the local file path."""
-        if self.data_format == 'csv':
-            return pl.read_csv(self.data_path)
-        if self.data_format == 'ipc':
-            return pl.read_ipc(self.data_path)
-        if self.data_format == 'json':
-            return pl.read_json(self.data_path)
+        if data_format == 'csv':
+            return pl.read_csv(data_path)
+        if data_format == 'ipc':
+            return pl.read_ipc(data_path)
+        if data_format == 'json':
+            return pl.read_json(data_path)
 
         raise ValueError(
             "{self.data_format} is not a valid data format. The accepted formats are 'csv', 'delta', 'json', and 'ipc'"
@@ -52,6 +50,9 @@ class LocalDataLoader:
 
 class LocalKaggleDataPullerLoader(KaggleDataPuller, LocalDataLoader):
     """Downlods a dataset from Kaggle in a local directory, and loads it"""
+
+# class Nifty50StockMarketPullerLoader(LocalKaggleDataPullerLoader):
+
     
 
 class DataLoader2:
