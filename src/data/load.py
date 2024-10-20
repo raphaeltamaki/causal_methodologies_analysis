@@ -16,14 +16,13 @@ class DataPuller(Protocol):
 class KaggleDataPuller:
     """Pulls a dataset from Kaggle"""
     kaggle_dataset_address: str
-    data_path: str
     unzip: bool = True
 
-    def pull_data(self: Path) -> None:
+    def pull_data(self, data_path: Path) -> None:
         """Pulls data from kaggle and stores it the folder path"""
         kaggle.api.authenticate()
         kaggle.api.dataset_download_files(
-                    self.kaggle_dataset_address, path=self.data_path, unzip=self.unzip
+                    self.kaggle_dataset_address, path=data_path, unzip=self.unzip
                 )
 
 class DataLoader(Protocol):
@@ -53,7 +52,7 @@ class LocalDataLoader:
 
 class LocalKaggleDataPullerLoader(KaggleDataPuller, LocalDataLoader):
     """Downlods a dataset from Kaggle in a local directory, and loads it"""
-
+    
 
 class DataLoader2:
     """
