@@ -8,9 +8,11 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.9"
-polars = "^1.2.0"
+polars = { version = "^1.2", markers = "sys_platform != 'darwin'" }
+polars-lts-cpu = { version = "^1.2", markers = "sys_platform == 'darwin'" }
 kaggle = "^1.6.14"
 pytest = "^8.3.3"
+xlsxwriter = "3.2.0"
 
 
 [build-system]
