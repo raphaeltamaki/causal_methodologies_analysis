@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Protocol
+from typing import Dict, Protocol
 
 from .kaggle_datasets import KaggleBenchmarkDataset
 from .utils import CreateLocalDirectoryIfNotExists
@@ -16,7 +16,7 @@ class DataPuller(Protocol):
         """Pulls data from a remote repository"""
 
 @dataclass
-class KaggleDataPuller:
+class KaggleDataPuller(Protocol):
     """Pulls a dataset from Kaggle"""
 
     def pull_kaggle_data(self, data_path: Path, kaggle_dataset_address: str, unzip: bool=True) -> None:
