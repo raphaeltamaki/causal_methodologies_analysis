@@ -1,7 +1,10 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Protocol
+from typing import Dict, List, Protocol
+
+from .kaggle_datasets import KaggleBenchmarkDataset
+from .utils import CreateLocalDirectoryIfNotExists
 
 import kaggle
 import polars as pl
@@ -15,14 +18,12 @@ class DataPuller(Protocol):
 @dataclass
 class KaggleDataPuller:
     """Pulls a dataset from Kaggle"""
-    kaggle_dataset_address: str
-    unzip: bool = True
 
-    def pull_data(self, data_path: Path) -> None:
+    def pull_kaggle_data(self, data_path: Path, kaggle_dataset_address: str, unzip: bool=True) -> None:
         """Pulls data from kaggle and stores it the folder path"""
         kaggle.api.authenticate()
         kaggle.api.dataset_download_files(
-                    self.kaggle_dataset_address, path=data_path, unzip=self.unzip
+                    kaggle_dataset_address, path=data_path, unzip=unzip
                 )
 
 class DataLoader(Protocol):
@@ -30,7 +31,7 @@ class DataLoader(Protocol):
     def load_data(self) -> pl.DataFrame:
         """Outputs the data"""
 
-@dataclass    
+
 class LocalDataLoader:
     """Loads data stored locally"""
    
@@ -48,12 +49,24 @@ class LocalDataLoader:
             )
 
 
-class LocalKaggleDataPullerLoader(KaggleDataPuller, LocalDataLoader):
+@dataclass
+class KaggleDataPullerLoader(KaggleDataPuller, LocalDataLoader):
     """Downlods a dataset from Kaggle in a local directory, and loads it"""
+    dataset: KaggleBenchmarkDataset
+    data_folder_path: Path
 
-# class Nifty50StockMarketPullerLoader(LocalKaggleDataPullerLoader):
+    def pull_data(self) -> None:
+        """Pull dataset from Kaggle in the folder path declared when class was initialized"""
+        dataset_path = self.data_folder_path / Path(self.dataset.dataset_name())
+        CreateLocalDirectoryIfNotExists().create_path_if_not_exists(dataset_path)
+        self.pull_kaggle_data(dataset_path, self.dataset.kaggle_dataset_address)
 
-    
+    def load_data(self) -> pl.DataFrame:
+        """Loads dataset from Kaggle in the folder path declared when class was initialized. Must have download dataset to work or dataset must already be in the path"""
+        data_file_path = self.data_folder_path / Path(self.dataset.dataset_name()) / Path(self.dataset.main_file_name())
+        self.load_local_data(data_file_path, self.dataset.data_format())
+            
+
 
 class DataLoader2:
     """
