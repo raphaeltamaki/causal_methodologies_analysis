@@ -16,7 +16,7 @@ class DataPuller(Protocol):
         """Pulls data from a remote repository"""
 
 @dataclass
-class KaggleDataPuller(Protocol):
+class KaggleDataPuller:
     """Pulls a dataset from Kaggle"""
 
     def pull_kaggle_data(self, data_path: Path, kaggle_dataset_address: str, unzip: bool=True) -> None:
