@@ -55,15 +55,21 @@ class KaggleDataPullerLoader(KaggleDataPuller, LocalDataLoader):
     dataset: KaggleBenchmarkDataset
     data_folder_path: Path
 
+    def _get_dataset_folder_path(self) -> Path:
+        return self.data_folder_path / Path(self.dataset.dataset_name())
+    
+    def _get_dataset_main_file_path(self) -> Path:
+        return self.data_folder_path / Path(self.dataset.dataset_name()) / Path(self.dataset.main_file_name())
+    
     def pull_data(self) -> None:
         """Pull dataset from Kaggle in the folder path declared when class was initialized"""
-        dataset_path = self.data_folder_path / Path(self.dataset.dataset_name())
+        dataset_path = self._get_dataset_folder_path()
         CreateLocalDirectoryIfNotExists().create_path_if_not_exists(dataset_path)
         self.pull_kaggle_data(dataset_path, self.dataset.kaggle_dataset_address)
 
     def load_data(self) -> pl.DataFrame:
         """Loads dataset from Kaggle in the folder path declared when class was initialized. Must have download dataset to work or dataset must already be in the path"""
-        data_file_path = self.data_folder_path / Path(self.dataset.dataset_name()) / Path(self.dataset.main_file_name())
+        data_file_path = self._get_dataset_main_file_path()
         self.load_local_data(data_file_path, self.dataset.data_format())
             
 
