@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import List, Protocol
 from dataclasses import dataclass
-from .load import LocalDataLoader
 import polars as pl
 
 DAY_DISCRETIZATION = "d"
@@ -38,9 +37,9 @@ class BenchmarkDataFormat():
     treatment_discriminator_col: str
     date_col: str
     target_col: str
-    date_discretization: str
-    date_format: str='%Y-%m-%d'
     feature_cols: List[str]=None
+    date_format: str='%Y-%m-%d'
+    date_discretization: str=DAY_DISCRETIZATION
 
     def get_unique_id_col(self):
         return self.unique_id_col
@@ -70,7 +69,7 @@ class DataFormatter:
         self.data_format = data_format
 
     @staticmethod
-    def get_year_month(column_name):
+    def get_year_month(column_name, date_format):
         """
         Get the the year-date of the date in
         yyyy-MM format
@@ -78,19 +77,20 @@ class DataFormatter:
         year = pl.col(column_name).dt.year()
         month = pl.col(column_name).dt.month()
         month = pl.when(month < 10).then(pl.concat_str(pl.lit("0"), month)).otherwise(month)
-        return pl.concat_str([year, pl.lit("-"), month]).str.to_datetime("%Y-%m", strict=True).alias(column_name)
+        return pl.concat_str([year, pl.lit("-"), month]).str.to_datetime(date_format, strict=True).alias(column_name)
     
     def discretize_date(self, data):
         """
         Discretize the date column to yearly, monthly, or daily
         """
         date_column_name = self.data_format.get_target_col()
+        date_format = self.data_format.get_date_format()
         date_discretization = self.data_format.get_date_discretization()
 
         if date_discretization == YEAR_DISCRETIZATION:
-            return data.with_columns(pl.col(date_column_name).dt.year().str.to_datetime("%Y", strict=True).alias(date_column_name))
+            return data.with_columns(pl.col(date_column_name).dt.year().str.to_datetime(date_format, strict=True).alias(date_column_name))
         elif date_discretization == MONTH_DISCRETIZATION:
-            return data.with_columns(self.get_year_month(date_column_name).alias(date_column_name))
+            return data.with_columns(self.get_year_month(date_column_name, date_format).alias(date_column_name))
         elif date_discretization == DAY_DISCRETIZATION:
             return data.with_columns(pl.col(date_column_name).cast(pl.Date).cast(pl.Datetime).alias(date_column_name))
         else:
