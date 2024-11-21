@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Protocol
+from typing import Dict, List, Protocol
 
 from .kaggle_datasets import KaggleBenchmarkDataset
 from .utils import CreateLocalDirectoryIfNotExists
@@ -72,7 +72,18 @@ class KaggleDataPullerLoader(KaggleDataPuller, LocalDataLoader):
         data_file_path = self._get_dataset_main_file_path()
         self.load_local_data(data_file_path, self.dataset.data_format())
             
+@dataclass
+class OpenDatasetsBenchmarksLoader:
 
+    def __init__(self, kaggle_datasets: List[KaggleBenchmarkDataset], data_folder_path: Path):
+        self.kaggle_datasets = kaggle_datasets
+        self.data_folder_path = data_folder_path
+        self.kaggle_data_loaders = self._get_loaders(kaggle_datasets, data_folder_path)
+
+    def _get_loaders(self, kaggle_datasets: List[KaggleBenchmarkDataset], data_folder_path: Path):
+        return [KaggleDataPullerLoader(dataset, data_folder_path) for dataset in kaggle_datasets]
+   
+    
 
 class DataLoader2:
     """
