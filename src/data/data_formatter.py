@@ -69,7 +69,7 @@ class DataFormatter:
         self.data_format = data_format
 
     @staticmethod
-    def get_year_month(column_name, date_format):
+    def get_year_month(column_name):
         """
         Get the the year-date of the date in
         yyyy-MM format
@@ -84,13 +84,12 @@ class DataFormatter:
         Discretize the date column to yearly, monthly, or daily
         """
         date_column_name = self.data_format.get_date_col()
-        date_format = self.data_format.get_date_format()
         date_discretization = self.data_format.get_date_discretization()
 
         if date_discretization == YEAR_DISCRETIZATION:
             return data.with_columns(pl.col(date_column_name).dt.year().cast(pl.String).str.to_datetime('%Y', strict=True).alias(date_column_name))
         elif date_discretization == MONTH_DISCRETIZATION:
-            return data.with_columns(self.get_year_month(date_column_name, date_format).alias(date_column_name))
+            return data.with_columns(self.get_year_month(date_column_name).alias(date_column_name))
         elif date_discretization == DAY_DISCRETIZATION:
             return data.with_columns(pl.col(date_column_name).cast(pl.Date).cast(pl.Datetime).alias(date_column_name))
         else:
