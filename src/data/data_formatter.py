@@ -77,18 +77,18 @@ class DataFormatter:
         year = pl.col(column_name).dt.year()
         month = pl.col(column_name).dt.month()
         month = pl.when(month < 10).then(pl.concat_str(pl.lit("0"), month)).otherwise(month)
-        return pl.concat_str([year, pl.lit("-"), month]).str.to_datetime(date_format, strict=True).alias(column_name)
+        return pl.concat_str([year, pl.lit("-"), month]).str.to_datetime('%Y-%m', strict=True).alias(column_name)
     
     def discretize_date(self, data):
         """
         Discretize the date column to yearly, monthly, or daily
         """
-        date_column_name = self.data_format.get_target_col()
+        date_column_name = self.data_format.get_date_col()
         date_format = self.data_format.get_date_format()
         date_discretization = self.data_format.get_date_discretization()
 
         if date_discretization == YEAR_DISCRETIZATION:
-            return data.with_columns(pl.col(date_column_name).dt.year().str.to_datetime(date_format, strict=True).alias(date_column_name))
+            return data.with_columns(pl.col(date_column_name).dt.year().cast(pl.String).str.to_datetime('%Y', strict=True).alias(date_column_name))
         elif date_discretization == MONTH_DISCRETIZATION:
             return data.with_columns(self.get_year_month(date_column_name, date_format).alias(date_column_name))
         elif date_discretization == DAY_DISCRETIZATION:
@@ -98,7 +98,7 @@ class DataFormatter:
     
     def format_date_col_type(self, data: pl.DataFrame) -> pl.DataFrame:
         """Transform all data into pl.Datetime if they aren't already"""
-        date_column_name = self.data_format.get_target_col()
+        date_column_name = self.data_format.get_date_col()
         date_format = self.data_format.get_date_format()
         if not isinstance(data.select(pl.col(date_column_name)).dtypes[0], pl.Datetime):
             return (
