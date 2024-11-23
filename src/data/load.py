@@ -5,6 +5,7 @@ from typing import Dict, List, Protocol
 
 from .kaggle_datasets import KaggleBenchmarkDataset
 from .utils import CreateLocalDirectoryIfNotExists
+import warnings
 
 import kaggle
 import polars as pl
@@ -21,10 +22,16 @@ class KaggleDataPuller:
 
     def pull_kaggle_data(self, data_path: Path, kaggle_dataset_address: str, unzip: bool=True) -> None:
         """Pulls data from kaggle and stores it the folder path"""
-        kaggle.api.authenticate()
-        kaggle.api.dataset_download_files(
-                    kaggle_dataset_address, path=data_path, unzip=unzip
-                )
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                category=DeprecationWarning,
+                message=".*HTTPResponse.getheaders().*"
+            )
+            kaggle.api.authenticate()
+            kaggle.api.dataset_download_files(
+                kaggle_dataset_address, path=data_path, unzip=unzip
+            )
 
 class DataLoader(Protocol):
     """Protocol for classes that implement load_data()"""
