@@ -146,7 +146,7 @@ class DataFormatter:
         return data
 
 
-class SupermarketSalesFormatter(BenchmarkDataFormat):
+class SupermarketSalesFormat(BenchmarkDataFormat):
     def __init__(
         self,
         unique_id_col: str = "Invoice ID",
@@ -167,7 +167,7 @@ class SupermarketSalesFormatter(BenchmarkDataFormat):
         )
 
 
-class IowaLicorSalesFormatter(BenchmarkDataFormat):
+class IowaLicorSalesFormat(BenchmarkDataFormat):
     def __init__(
         self,
         unique_id_col: str = "Invoice/Item Number",
@@ -188,15 +188,8 @@ class IowaLicorSalesFormatter(BenchmarkDataFormat):
             date_discretization,
         )
 
-    def _transform_target(self, data: pl.DataFrame) -> pl.DataFrame:
-        return data.with_columns(
-            pl.col(self.target_col).map_elements(
-                lambda value: float(value.replace("$", "")), return_dtype=pl.Float64
-            )
-        )
 
-
-class WallmartSalesFormatter(BenchmarkDataFormat):
+class WallmartSalesFormat(BenchmarkDataFormat):
     def __init__(
         self,
         unique_id_col: str = "Store",
@@ -211,7 +204,7 @@ class WallmartSalesFormatter(BenchmarkDataFormat):
         )
 
 
-class SuperstoreSalesFormatter(BenchmarkDataFormat):
+class SuperstoreSalesFormat(BenchmarkDataFormat):
     def __init__(
         self,
         unique_id_col: str = "Order ID",
