@@ -34,7 +34,7 @@ class DatasetFormat(Protocol):
 
 @dataclass
 class BenchmarkDataFormat:
-    unique_unique_id_col: str
+    unique_id_col: str
     treatment_discriminator_col: str
     date_col: str
     target_col: str
