@@ -34,7 +34,7 @@ class DatasetFormat(Protocol):
 
 @dataclass
 class BenchmarkDataFormat:
-    unique_id_col: str
+    unique_unique_id_col: str
     treatment_discriminator_col: str
     date_col: str
     target_col: str
@@ -149,8 +149,8 @@ class DataFormatter:
 class SupermarketSalesFormatter(BenchmarkDataFormat):
     def __init__(
         self,
-        id_col: str = "Invoice ID",
-        treatment_col: str = "City",
+        unique_id_col: str = "Invoice ID",
+        treatment_discriminator_col: str = "City",
         date_col: str = "Date",
         target_col: str = "Total",
         feature_cols: List[str] = [
@@ -163,15 +163,15 @@ class SupermarketSalesFormatter(BenchmarkDataFormat):
         date_format: str = "%m/%d/%Y",
     ) -> None:
         super().__init__(
-            id_col, treatment_col, date_col, target_col, feature_cols, date_format
+            unique_id_col, treatment_discriminator_col, date_col, target_col, feature_cols, date_format
         )
 
 
 class IowaLicorSalesFormatter(BenchmarkDataFormat):
     def __init__(
         self,
-        id_col: str = "Invoice/Item Number",
-        treatment_col: str = "County",
+        unique_id_col: str = "Invoice/Item Number",
+        treatment_discriminator_col: str = "County",
         date_col: str = "Date",
         target_col: str = "Sale (Dollars)",
         feature_cols: List[str] = ["Category", "Bottle Volume (ml)"],
@@ -179,8 +179,8 @@ class IowaLicorSalesFormatter(BenchmarkDataFormat):
         date_discretization: str = MONTH_DISCRETIZATION,
     ) -> None:
         super().__init__(
-            id_col,
-            treatment_col,
+            unique_id_col,
+            treatment_discriminator_col,
             date_col,
             target_col,
             feature_cols,
@@ -199,23 +199,23 @@ class IowaLicorSalesFormatter(BenchmarkDataFormat):
 class WallmartSalesFormatter(BenchmarkDataFormat):
     def __init__(
         self,
-        id_col: str = "Store",
-        treatment_col: str = "Store",
+        unique_id_col: str = "Store",
+        treatment_discriminator_col: str = "Store",
         date_col: str = "Date",
         target_col: str = "Weekly_Sales",
         feature_cols: List[str] = ["Temperature", "Fuel_Price", "CPI", "Unemployment"],
         date_format: str = "%d-%m-%Y",
     ) -> None:
         super().__init__(
-            id_col, treatment_col, date_col, target_col, feature_cols, date_format
+            unique_id_col, treatment_discriminator_col, date_col, target_col, feature_cols, date_format
         )
 
 
 class SuperstoreSalesFormatter(BenchmarkDataFormat):
     def __init__(
         self,
-        id_col: str = "Order ID",
-        treatment_col: str = "City",
+        unique_id_col: str = "Order ID",
+        treatment_discriminator_col: str = "City",
         date_col: str = "Order Date",
         target_col: str = "Sales",
         feature_cols: List[str] = ["State", "Category", "Sub-Category"],
@@ -223,8 +223,8 @@ class SuperstoreSalesFormatter(BenchmarkDataFormat):
         date_discretization: str = MONTH_DISCRETIZATION,
     ) -> None:
         super().__init__(
-            id_col,
-            treatment_col,
+            unique_id_col,
+            treatment_discriminator_col,
             date_col,
             target_col,
             feature_cols,
@@ -233,79 +233,61 @@ class SuperstoreSalesFormatter(BenchmarkDataFormat):
         )
 
 
-class LifetimeValueFormatter(BenchmarkDataFormat):
+class LifetimeValueFormat(BenchmarkDataFormat):
     def __init__(
         self,
-        id_col: str = "user_id",
-        treatment_col: str = "country_segment",
+        unique_id_col: str = "user_id",
+        treatment_discriminator_col: str = "country_segment",
         date_col: str = "join_date",
         target_col: str = "STV",
         feature_cols: List[str] = ["product", "product_type", "credit_card_level"],
         date_format: str = "%Y-%m-%d %H:%M:%S",
     ) -> None:
         super().__init__(
-            id_col, treatment_col, date_col, target_col, feature_cols, date_format
+            unique_id_col, treatment_discriminator_col, date_col, target_col, feature_cols, date_format
         )
 
 
-class EarthTemperatureFormatter(BenchmarkDataFormat):
+class EarthTemperatureFormat(BenchmarkDataFormat):
     def __init__(
         self,
-        id_col: str = "Country",
-        treatment_col: str = "Country",
+        unique_id_col: str = "Country",
+        treatment_discriminator_col: str = "Country",
         date_col: str = "dt",
         target_col: str = "AverageTemperature",
         feature_cols: List[str] = [],
         date_format: str = "%Y-%m-%d",
     ) -> None:
         super().__init__(
-            id_col, treatment_col, date_col, target_col, feature_cols, date_format
+            unique_id_col, treatment_discriminator_col, date_col, target_col, feature_cols, date_format
         )
 
-    def _filter_data(self, data: pl.DataFrame) -> pl.DataFrame:
 
-        return data.filter(pl.col(self.date_col) >= pl.lit(datetime(1990, 1, 1)))
-
-
-class Nifty50StockMarketFormatter(BenchmarkDataFormat):
+class Nifty50StockMarketFormat(BenchmarkDataFormat):
     def __init__(
         self,
-        id_col: str = "Symbol",
-        treatment_col: str = "Symbol",
+        unique_id_col: str = "Symbol",
+        treatment_discriminator_col: str = "Symbol",
         date_col: str = "Date",
         target_col: str = "Close",
         feature_cols: List[str] = [],
         date_format: str = "%Y-%m-%d",
     ) -> None:
         super().__init__(
-            id_col, treatment_col, date_col, target_col, feature_cols, date_format
+            unique_id_col, treatment_discriminator_col, date_col, target_col, feature_cols, date_format
         )
 
 
-class CoronaFormatter(BenchmarkDataFormat):
+class CoronaFormat(BenchmarkDataFormat):
     def __init__(
         self,
-        id_col: str = "Province/State",
-        treatment_col: str = "Country/Region",
+        unique_id_col: str = "Province/State",
+        treatment_discriminator_col: str = "Country/Region",
         date_col: str = "ObservationDate",
         target_col: str = "Confirmed",
         feature_cols: List[str] = [],
         date_format: str = "%m/%d/%Y",
     ) -> None:
         super().__init__(
-            id_col, treatment_col, date_col, target_col, feature_cols, date_format
-        )
-
-    def _filter_data(self, data: pl.DataFrame) -> pl.DataFrame:
-        return data.filter(pl.col(self.date_col) > pl.lit(datetime(2020, 10, 1)))
-
-    def _transform_target(self, data: pl.DataFrame) -> pl.DataFrame:
-        return data.sort([self.date_col]).with_columns(
-            (
-                pl.col(self.target_col)
-                - pl.coalesce(
-                    pl.col(self.target_col).shift().over([self.treatment_col]),
-                    pl.lit(0),
-                )
-            ).alias(self.target_col)
+            unique_id_col, treatment_discriminator_col, date_col, target_col, feature_cols, date_format
         )
